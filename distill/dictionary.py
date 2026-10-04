@@ -1,0 +1,124 @@
+"""数据字典定义，并生成 docs/数据字典.md（python -m distill.dictionary）。
+
+来源标记：
+  真实 = 携程采集原值；解析 = 由真实文本规则解析；推断 = 由真实数据推断（如城市、类别）；
+  派生 = 基于真实值按业务规则计算（如限价区间）；仿真 = 按业务逻辑统计仿真生成。
+"""
+import json
+import os
+
+from . import config
+
+DICT = {
+    "scenic_product_detail": ("景区产品详情数据集", "一行一个在售商品（景区×商品），主体为携程真实商品。", [
+        ("product_id", "产品ID（交付主键）", "派生"), ("source_ticket_id", "携程商品/资源ID", "真实"),
+        ("poi_id", "景区POI ID", "真实"), ("poi_name", "景区名称", "真实"),
+        ("province", "省份", "推断"), ("city", "城市", "推断"), ("scenic_category", "景区类别（13类）", "推断"),
+        ("scenic_grade_inferred", "景区热度等级（按销量分位推断，非官方A级）", "推断"),
+        ("ticket_type", "票类型编码1-11", "真实"), ("ticket_type_name", "票类型名称", "真实"),
+        ("product_name", "商品名称", "真实"), ("list_price", "展示价/起价（元）", "真实"),
+        ("sales_volume", "销量数值（展示文本解析的下限）", "解析"), ("sales_volume_raw", "销量原始展示文本", "真实"),
+        ("is_base_ticket", "是否基础门票", "解析"), ("feature_tags", "商品特征标签（|分隔，15类）", "解析"),
+        ("target_segments", "适配客群（特征-客群偏好矩阵打分Top2）", "派生"),
+        ("applicable_crowd", "适用人群", "解析"), ("duration_hours", "游玩/活动时长（小时）", "解析"),
+        ("booking_advance", "预订时效（可订今日/可订明日/需提前N天）", "解析"), ("refund_policy", "退改政策", "解析"),
+        ("entry_method", "入园方式", "解析"), ("ticket_issue_speed", "出票速度", "解析"), ("need_id_card", "是否需证件", "解析"),
+        ("cost_price", "成本价（按票类型成本率区间）", "派生"), ("floor_price", "最低保底价", "派生"),
+        ("ceiling_price", "最高限价", "派生"), ("premium_coef", "溢价系数", "派生"), ("discount_coef", "折扣系数", "派生"),
+        ("daily_inventory", "日库存", "派生"), ("cost_inclusion", "费用包含（原文）", "真实"),
+        ("purchase_notes", "购买须知（原文）", "真实"), ("data_source", "数据来源标记", "派生"),
+    ]),
+    "visitor_profile": ("景区游客画像数据集", "一行一位游客（虚拟ID，无真实个人信息），消费汇总字段由消费数据集回填。", [
+        ("visitor_id", "游客ID", "仿真"), ("gender", "性别", "仿真"), ("age", "年龄", "仿真"), ("age_band", "年龄段", "仿真"),
+        ("source_province", "客源省份", "仿真"), ("source_city", "客源城市", "仿真"), ("city_tier", "客源城市等级", "仿真"),
+        ("travel_type", "出游类型/客群（8类）", "仿真"), ("party_structure", "同行结构描述", "仿真"),
+        ("adults", "成人数", "仿真"), ("children", "儿童数", "仿真"), ("seniors", "长者数", "仿真"), ("child_age", "儿童年龄", "仿真"),
+        ("income_level", "收入水平", "仿真"), ("price_sensitivity", "价格敏感度", "仿真"), ("member_level", "会员等级", "仿真"),
+        ("preferred_channel", "首选购票渠道", "仿真"), ("secondary_channel", "次选购票渠道", "仿真"),
+        ("booking_lead_pref", "提前预订习惯", "仿真"), ("annual_trip_freq", "年出游次数", "仿真"),
+        ("preferred_categories", "偏好景区类别Top3", "仿真"), ("interest_tags", "兴趣标签", "仿真"),
+        ("device_type", "常用终端", "仿真"), ("register_date", "注册日期", "仿真"),
+        ("total_orders", "有效订单数（回填）", "仿真"), ("total_spend", "累计消费额（回填）", "仿真"),
+        ("last_visit_date", "最近到访日期（回填）", "仿真"), ("favorite_province", "最常去省份（回填）", "仿真"),
+        ("avg_order_amount", "平均订单金额", "仿真"), ("refund_orders", "退款订单数", "仿真"), ("value_tier", "价值分层", "仿真"),
+    ]),
+    "visitor_consumption": ("景区游客消费数据集", "一行一笔订单；与画像、产品、轨迹外键关联。", [
+        ("order_id", "订单ID", "仿真"), ("visitor_id", "游客ID", "仿真"), ("trip_id", "行程ID", "仿真"),
+        ("poi_id", "景区ID", "真实"), ("poi_name", "景区名称", "真实"), ("poi_province", "景区省份", "推断"),
+        ("poi_city", "景区城市", "推断"), ("scenic_category", "景区类别", "推断"),
+        ("product_id", "产品ID", "派生"), ("product_name", "商品名称", "真实"), ("ticket_type_name", "票类型", "真实"),
+        ("channel", "购买渠道（9个）", "仿真"), ("order_time", "下单时间", "仿真"), ("visit_date", "游玩日期", "仿真"),
+        ("lead_days", "提前预订天数", "仿真"), ("adult_qty", "成人数", "仿真"), ("child_qty", "儿童数", "仿真"),
+        ("senior_qty", "长者数", "仿真"), ("quantity", "总人数", "仿真"), ("unit_price", "渠道成交单价", "仿真"),
+        ("original_amount", "原价总额（儿童/长者门票半价）", "仿真"), ("coupon_amount", "优惠券金额", "仿真"),
+        ("paid_amount", "实付金额", "仿真"), ("payment_method", "支付方式", "仿真"),
+        ("order_status", "订单状态（已核销/已退款/已过期未使用）", "仿真"), ("refund_reason", "退款原因", "仿真"),
+        ("refund_amount", "退款金额", "仿真"), ("addon_product_id", "园内加购商品ID（组合推荐真实转化）", "仿真"),
+        ("addon_amount", "加购金额", "仿真"), ("secondary_spend", "二次消费金额", "仿真"),
+        ("secondary_detail", "二次消费明细", "仿真"), ("total_spend", "订单总消费", "仿真"), ("rating", "评分1-5", "仿真"),
+        ("visit_weather", "游玩日天气", "仿真"), ("visit_day_type", "游玩日日期类型", "仿真"),
+        ("holiday_name", "节假日名称", "真实"), ("travel_type", "出游类型", "仿真"), ("member_level", "会员等级", "仿真"),
+    ]),
+    "visitor_trajectory": ("游客出行轨迹数据集", "一行一个到访点；退款/未使用订单不产生轨迹。", [
+        ("trajectory_id", "轨迹点ID", "仿真"), ("trip_id", "行程ID", "仿真"), ("visitor_id", "游客ID", "仿真"),
+        ("seq_no", "行程内序号", "仿真"), ("poi_id", "景区ID", "真实"), ("poi_name", "景区名称", "真实"),
+        ("province", "省份", "推断"), ("city", "城市", "推断"), ("scenic_category", "景区类别", "推断"),
+        ("lat", "纬度（城市中心+扰动，近似）", "仿真"), ("lon", "经度（近似）", "仿真"), ("visit_date", "到访日期", "仿真"),
+        ("arrive_time", "到达时间", "仿真"), ("leave_time", "离开时间", "仿真"), ("stay_minutes", "停留分钟", "仿真"),
+        ("transport_from_prev", "从上一点的交通方式", "仿真"), ("distance_from_prev_km", "与上一点距离(km)", "仿真"),
+        ("origin_city", "出发城市（首站）", "仿真"), ("trip_type", "省内周边游/跨省游", "仿真"), ("trip_days", "行程天数", "仿真"),
+        ("weather", "天气", "仿真"), ("temp_high", "最高气温", "仿真"), ("day_type", "日期类型", "真实"),
+        ("order_id", "关联订单ID（空=现场购票/免费游览）", "仿真"), ("entry_type", "入园方式", "仿真"), ("travel_type", "出游类型", "仿真"),
+    ]),
+    "channel_distribution": ("景区分销渠道数据集", "粒度：月×核心景区×商品×渠道；同景区同月各渠道售票合计=日度客流月合计。", [
+        ("stat_month", "统计月份", "仿真"), ("poi_id", "景区ID", "真实"), ("poi_name", "景区名称", "真实"),
+        ("province", "省份", "推断"), ("city", "城市", "推断"), ("scenic_category", "景区类别", "推断"),
+        ("product_id", "产品ID", "派生"), ("product_name", "商品名称", "真实"), ("ticket_type_name", "票类型", "真实"),
+        ("channel", "渠道", "仿真"), ("channel_type", "渠道类型（OTA/内容电商/内容种草/自营直销/线下/B2B分销）", "仿真"),
+        ("list_price", "标价", "真实"), ("channel_price", "渠道售价", "仿真"), ("commission_rate", "佣金率", "仿真"),
+        ("exposure", "曝光量（线下/旅行社为空）", "仿真"), ("clicks", "点击量", "仿真"), ("ctr", "点击率", "仿真"),
+        ("orders", "订单量", "仿真"), ("cvr", "转化率", "仿真"), ("tickets_sold", "售票张数", "仿真"), ("gmv", "GMV", "仿真"),
+        ("commission_fee", "佣金", "仿真"), ("refund_orders", "退款订单", "仿真"), ("refund_rate", "退款率", "仿真"),
+        ("net_revenue", "扣佣净收入", "仿真"), ("marketing_spend", "营销投放费用", "仿真"), ("roas", "ROAS=GMV/营销费用", "仿真"),
+        ("cpa", "单订单获客成本", "仿真"), ("new_customer_ratio", "新客占比", "仿真"), ("avg_lead_days", "平均提前预订天数", "仿真"),
+        ("main_segment", "主力客群", "仿真"), ("seg_share_<客群>", "8个客群各自占比（8列）", "仿真"),
+    ]),
+    "scenic_daily_ops": ("景区日度客流与运营数据（辅助表）", "274个核心景区×2024-01-01~2025-12-31；客流预测/动态定价/经营洞察训练集的数据基础。", [
+        ("date", "日期", "真实"), ("poi_id", "景区ID", "真实"), ("poi_name", "景区名称", "真实"), ("province", "省份", "推断"),
+        ("city", "城市", "推断"), ("scenic_category", "景区类别", "推断"), ("is_indoor", "是否室内", "推断"),
+        ("weekday", "星期", "真实"), ("day_type", "日期类型（法定节假日/周末/调休工作日/工作日）", "真实"),
+        ("holiday_name", "节假日名称（国务院放假安排）", "真实"), ("school_vacation", "寒暑假", "真实"),
+        ("season_label", "业务季节标签", "派生"), ("weather", "天气", "仿真"), ("temp_high", "最高气温", "仿真"),
+        ("temp_low", "最低气温", "仿真"), ("event_name", "节庆活动", "仿真"), ("base_product_id", "基础门票产品ID", "派生"),
+        ("list_price", "门票标价", "真实"), ("executed_price", "当日执行价", "仿真"), ("competitor_avg_price", "竞品均价", "仿真"),
+        ("daily_capacity", "日最大承载量", "推断"), ("visitors", "实际入园人数", "仿真"), ("load_rate", "承载率", "仿真"),
+        ("is_sold_out", "是否满载", "仿真"), ("online_bookings", "线上预约入园", "仿真"), ("offline_visitors", "线下入园", "仿真"),
+        ("booked_by_d7", "截至D-7累计线上预约", "仿真"), ("booked_by_d3", "截至D-3累计线上预约", "仿真"),
+        ("booked_by_d1", "截至D-1累计线上预约", "仿真"), ("refund_orders", "退款单量", "仿真"), ("ticket_revenue", "门票收入", "仿真"),
+        ("secondary_revenue", "二次消费收入", "仿真"), ("total_revenue", "总收入", "仿真"),
+        ("avg_spend_per_visitor", "人均消费", "仿真"), ("marketing_spend", "营销费用", "仿真"),
+        ("satisfaction_score", "满意度均分", "仿真"), ("complaint_count", "投诉量", "仿真"),
+    ]),
+}
+
+
+def main():
+    man = json.load(open(os.path.join(config.DATASET_DIR, "manifest.json"), encoding="utf-8"))
+    out = ["# 数据字典", "",
+           "来源标记：**真实**=携程采集原值；**解析**=由真实文本规则解析；**推断**=由真实数据推断；"
+           "**派生**=基于真实值按业务规则计算；**仿真**=按业务逻辑统计仿真生成（非真实交易）。", ""]
+    for name, (title, desc, cols) in DICT.items():
+        info = man.get(name, {})
+        out += [f"## {title}（`{name}`）", "", desc, "",
+                f"- 行数：{info.get('rows', '-')}", f"- 文件：{', '.join('`' + f + '`' for f in info.get('files', []))}", "",
+                "| 字段 | 含义 | 来源 |", "|---|---|---|"]
+        out += [f"| `{c}` | {d} | {s} |" for c, d, s in cols]
+        out.append("")
+    os.makedirs(os.path.join(config.ROOT, "docs"), exist_ok=True)
+    with open(os.path.join(config.ROOT, "docs", "数据字典.md"), "w", encoding="utf-8") as f:
+        f.write("\n".join(out))
+    print("docs/数据字典.md written")
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,31 @@
+{
+  "task": "visitor_forecast",
+  "counts": {
+    "train": 93890,
+    "val": 3031,
+    "test": 3079
+  },
+  "total": 100000,
+  "files": {
+    "train": [
+      "sft/visitor_forecast/visitor_forecast_train-00000.jsonl.gz",
+      "sft/visitor_forecast/visitor_forecast_train-00001.jsonl.gz",
+      "sft/visitor_forecast/visitor_forecast_train-00002.jsonl.gz",
+      "sft/visitor_forecast/visitor_forecast_train-00003.jsonl.gz"
+    ],
+    "val": [
+      "sft/visitor_forecast/visitor_forecast_val-00000.jsonl.gz"
+    ],
+    "test": [
+      "sft/visitor_forecast/visitor_forecast_test-00000.jsonl.gz"
+    ],
+    "meta": [
+      "sft/visitor_forecast/visitor_forecast_meta-00000.jsonl.gz"
+    ]
+  },
+  "stats": {
+    "teacher_mape_vs_actual": 0.0814
+  },
+  "title": "游客人数预测模型",
+  "seconds": 71
+}

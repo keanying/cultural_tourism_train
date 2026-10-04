@@ -1,0 +1,29 @@
+{
+  "task": "dynamic_pricing",
+  "counts": {
+    "train": 94048,
+    "val": 2961,
+    "test": 2991
+  },
+  "total": 100000,
+  "files": {
+    "train": [
+      "sft/dynamic_pricing/dynamic_pricing_train-00000.jsonl.gz",
+      "sft/dynamic_pricing/dynamic_pricing_train-00001.jsonl.gz"
+    ],
+    "val": [
+      "sft/dynamic_pricing/dynamic_pricing_val-00000.jsonl.gz"
+    ],
+    "test": [
+      "sft/dynamic_pricing/dynamic_pricing_test-00000.jsonl.gz"
+    ],
+    "meta": [
+      "sft/dynamic_pricing/dynamic_pricing_meta-00000.jsonl.gz"
+    ]
+  },
+  "stats": {
+    "sampling_tries": 552440
+  },
+  "title": "票务产品动态定价模型",
+  "seconds": 33
+}

@@ -1,0 +1,29 @@
+{
+  "task": "combo_recommend",
+  "counts": {
+    "train": 94013,
+    "val": 3043,
+    "test": 2944
+  },
+  "total": 100000,
+  "files": {
+    "train": [
+      "sft/combo_recommend/combo_recommend_train-00000.jsonl.gz",
+      "sft/combo_recommend/combo_recommend_train-00001.jsonl.gz"
+    ],
+    "val": [
+      "sft/combo_recommend/combo_recommend_val-00000.jsonl.gz"
+    ],
+    "test": [
+      "sft/combo_recommend/combo_recommend_test-00000.jsonl.gz"
+    ],
+    "meta": [
+      "sft/combo_recommend/combo_recommend_meta-00000.jsonl.gz"
+    ]
+  },
+  "stats": {
+    "no_recommend": 4827
+  },
+  "title": "票务产品组合推荐模型",
+  "seconds": 110
+}
