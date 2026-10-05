@@ -12,6 +12,8 @@ import sys
 import pandas as pd
 
 from . import config
+from . import naming
+from .build_datasets import dataset_dir
 from .io_utils import iter_jsonl_shards, read_csv_shards
 
 ASSIST_RE = re.compile(r"^<thought>\n(.+)\n</thought>\n<answer>\n(.+)\n</answer>$", re.S)
@@ -23,8 +25,13 @@ def check(cond, name, results, detail=""):
 
 
 def validate_datasets(results):
-    d = config.DATASET_DIR
-    load = lambda n: read_csv_shards(os.path.join(d, n), n)
+    std = {}
+
+    def load(n):
+        t = naming.TABLES[n]
+        std[n] = read_csv_shards(dataset_dir(n), t["table"])
+        return naming.to_internal(std[n], n)
+
     prod = load("scenic_product_detail")
     prof = load("visitor_profile")
     orders = load("visitor_consumption")
@@ -32,6 +39,7 @@ def validate_datasets(results):
     ch = load("channel_distribution")
     ops = load("scenic_daily_ops")
     n = config.DATASET_ROWS
+    validate_naming(std, results)
     for name, df in [("scenic_product_detail", prod), ("visitor_profile", prof), ("visitor_consumption", orders),
                      ("visitor_trajectory", traj), ("channel_distribution", ch)]:
         check(len(df) == n, f"{name} 行数={n}", results, f"实际 {len(df)}")
@@ -66,6 +74,29 @@ def validate_datasets(results):
     diff = (pp.reindex(paid.index) - paid).abs().max()
     check(diff < 0.05, "画像消费汇总=订单汇总", results, f"最大偏差 {diff}")
     return {"products": prod, "ops": ops}
+
+
+NAME_RE = re.compile(r"^[a-z][a-z0-9]*(_[a-z0-9]+)*$")
+TABLE_RE = re.compile(r"^(ods|dwd|dws|ads|dim|src)_(prd|ord|cus|sup|inv|fin|opr|trf|mkt)_[a-z0-9_]+_(hrs|hrs_f|di|df|wk|wk_f|mo|mo_f|q|q_f|yr|yr_f|f|zip)$")
+
+
+def validate_naming(std, results):
+    """客户命名规范：表名格式、snake_case 字段、表/字段注释、类型状态枚举说明、travel_date 分区。"""
+    for n, df in std.items():
+        t = naming.TABLES[n]
+        full = naming.full_name(n)
+        check(TABLE_RE.match(t["table"]) and t["table"].startswith(t["db"] + "_"), f"{full} 表名符合 分层_业务域_实体_粒度", results)
+        bad = [c for c in df.columns if not NAME_RE.match(c)]
+        check(not bad, f"{full} 字段名 snake_case", results, f"不合规：{bad}" if bad else "")
+        no_comment = [f["name"] for f in t["fields"] if not f["comment"]] + ([] if t["comment"] else ["<表注释>"])
+        check(not no_comment, f"{full} 表与字段均有注释", results, str(no_comment) if no_comment else "")
+        enum_cols = [f for f in t["fields"] if f["name"].endswith(("_type", "_status", "_level", "_code")) or f["name"].startswith("is_")]
+        missing = [f["name"] for f in enum_cols if not (f["enum"] or "：" in f["comment"])]
+        check(not missing, f"{full} 类型/状态/等级字段注释含取值说明", results, str(missing) if missing else "")
+        bad_val = [f["name"] for f in t["fields"] if f["enum"] and not df[f["name"]].dropna().isin(list(naming.ENUMS[f["enum"]])).all()]
+        check(not bad_val, f"{full} 编码字段取值均在枚举定义内", results, str(bad_val) if bad_val else "")
+        td = df[naming.PARTITION].astype(str)
+        check(td.str.fullmatch(r"20\d{6}").all(), f"{full} 分区字段 travel_date 为 YYYYMMDD", results)
 
 
 def _num(s):

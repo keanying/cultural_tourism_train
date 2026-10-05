@@ -9,13 +9,29 @@
 
 | 类别 | 内容 | 位置 |
 |---|---|---|
-| 明细数据集 | 景区分销渠道 / 景区产品详情 / 景区游客消费 / 景区游客画像 / 游客出行轨迹，各 **200,000** 行 | `output/datasets/<name>/*.csv.gz` |
-| 辅助数据集 | 景区日度客流与运营数据（274 个核心景区 × 731 天 ≈ 20 万行，预测/定价/洞察的数据基础） | `output/datasets/scenic_daily_ops/` |
+| 明细数据集 | 5 张表各 **200,000** 行，按客户数仓命名规范输出（见下表） | `output/datasets/<库>/<表>/*.csv.gz` |
+| 辅助数据集 | 景区日度客流与运营数据（274 个核心景区 × 731 天 ≈ 20 万行，预测/定价/洞察的数据基础） | `output/datasets/dws/dws_opr_attraction_operation_di/` |
+| 建表语句 | 每张表的 Hive DDL（表与字段均带 COMMENT，按 `travel_date` 分区） | `docs/ddl/*.sql` |
 | SFT 训练集 | 组合推荐 / 客流预测 / 动态定价 / 渠道投放 / 经营洞察，各 **100,000** 条（train 94% / val 3% / test 3%） | `output/sft/<task>/<task>_{train,val,test}-*.jsonl.gz` |
 | 评测真值 | 每条样本的真值与溯源（推荐真值ID、真实客流、规则ID等），按顺序与样本对齐 | `output/sft/<task>/<task>_meta-*.jsonl.gz` |
 | 质量报告 | 主外键、跨表一致性、格式与业务约束全量校验结果 | `output/quality_report.md` |
 | 文档 | 数据字典、训练集格式规范（含每个模型的真实样例） | `docs/数据字典.md`、`docs/训练集格式规范.md` |
 | 代码 | 全流程蒸馏代码（清洗→仿真→训练集构造→LLM 润色→校验→评测），固定随机种子可完全复现 | `distill/` |
+
+### 表清单（客户数仓命名规范）
+
+| 数据集 | 库.表 | 粒度 / 分区 travel_date |
+|---|---|---|
+| 景区分销渠道数据集 | `dws.dws_trf_attraction_channel_sales_mo` | 月级增量 / 统计月份首日 |
+| 景区产品详情数据集 | `dim.dim_prd_attraction_ticket_df` | 天级全量快照 / 商品采集日 |
+| 景区游客消费数据集 | `dwd.dwd_ord_attraction_ticket_order_di` | 天级增量 / 游玩日期 |
+| 景区游客画像数据集 | `dws.dws_cus_traveler_profile_df` | 天级全量快照 / 画像统计截止日 |
+| 游客出行轨迹数据集 | `dwd.dwd_cus_traveler_trajectory_di` | 天级增量 / 到访日期 |
+| 景区日度客流与运营（辅助） | `dws.dws_opr_attraction_operation_di` | 天级增量 / 统计日期 |
+
+字段均为 snake_case 的“实体_属性”，金额 `_amt`、数量 `_qty`、比例 `_rate`、编号 `_no`、名称 `_name`、日期 `_date`、时间 `_time`；
+类型/状态/等级类字段统一编码，注释中写明每个取值含义（如 `order_status`：1-已核销 2-已退款 3-已过期未使用），并保留对应 `_name` 字段方便阅读。
+全部映射集中定义在 `distill/naming.py`，质量校验会逐表检查命名、注释、编码取值与分区格式。
 
 > 为满足 GitHub 单文件 100MB 限制，数据以 gzip 分片存放。运行 `python unpack.py` 可合并解压到 `dist/`
 > （`dist/sft/<task>/train.jsonl` 等），直接作为训练文件使用。
@@ -26,7 +42,7 @@
 pip install -r requirements.txt
 
 # 1) 直接使用已生成的数据
-python unpack.py                       # -> dist/sft/<task>/{train,val,test}.jsonl, dist/datasets/*.csv
+python unpack.py                       # -> dist/sft/<task>/{train,val,test}.jsonl, dist/datasets/<库>.<表>.csv
 
 # 2) 从原始数据完整复现（约 1~2 小时，4 核）
 bash run_all.sh
@@ -55,7 +71,7 @@ LLaMA-Factory `dataset_info.json` 示例：
 ### 数据管理页面（查看 / 在线修改 / 一键导出 JSONL）
 
 ```bash
-python -m distill.build_db                     # 导入 SQLite（web/data/ct.db）
+python -m distill.build_db                     # 按分层导入 SQLite（web/data/{dim,dwd,dws,ads}.db）
 cd web && npm install && npm run build && npm start   # http://localhost:3000
 ```
 
@@ -99,6 +115,7 @@ cd web && npm install && npm run build && npm start   # http://localhost:3000
 
 ```
 distill/
+  naming.py           客户数仓命名规范映射（库表名、字段名、注释、枚举编码、分区）——交付命名的唯一来源
   config.py           规模/路径/种子（可用环境变量 CT_DATASET_ROWS / CT_SFT_SAMPLES / CT_SEED 覆盖）
   geo.py              地级市字典与城市识别
   calendar_cn.py      节假日、季节标签、天气模拟
@@ -111,9 +128,10 @@ distill/
   llm_refine.py       OpenAI/DeepSeek 润色 + 事实锁
   validate.py         质量校验       evaluate.py  离线评测
   build_datasets.py / build_sft.py   一键入口
-  build_db.py         导入 SQLite，供数据管理页面使用
+  build_db.py         按 dim/dwd/dws/ads 分库导入 SQLite，供数据管理页面使用
+  dictionary.py       生成数据字典与 DDL
 web/                  数据管理页面（Next.js + HeroUI v3）
-docs/                 数据字典、训练集格式规范
+docs/                 数据字典、DDL（docs/ddl/）、训练集格式规范
 output/               交付数据（gzip 分片）
 ```
 

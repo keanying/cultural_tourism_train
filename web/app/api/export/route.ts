@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
  * 一键导出 JSONL（流式，包含页面上的所有修改）：
  *   GET /api/export?source=&split=&q=&edited=&meta=
  * 训练集：每行 {"messages":[system,user,assistant]}，可直接喂给训练框架；meta=1 时额外附带 id 与评测真值。
- * 明细数据集：每行一个 JSON 对象（全部字段）。
+ * 明细数据集：每行一个 JSON 对象（全部规范字段，含 travel_date 分区字段）。
  */
 export async function GET(req: Request) {
   try {
@@ -19,8 +19,9 @@ export async function GET(req: Request) {
     const db = getDb();
     const sql =
       s.kind === "sft"
-        ? `SELECT sid, system, user, assistant, meta FROM sft ${where} ORDER BY _id`
-        : `SELECT ${s.columns.map(q).join(", ")} FROM ${tableOf(s)} ${where} ORDER BY _id`;
+        ? `SELECT sample_no AS sid, system_content AS system, user_content AS user, assistant_content AS assistant, meta_content AS meta
+           FROM ${tableOf(s)} ${where} ORDER BY row_id`
+        : `SELECT ${s.columns.map(q).join(", ")} FROM ${tableOf(s)} ${where} ORDER BY row_id`;
     const iter = db.prepare(sql).iterate(...params) as IterableIterator<any>;
     const enc = new TextEncoder();
     const stream = new ReadableStream<Uint8Array>({
@@ -54,7 +55,7 @@ export async function GET(req: Request) {
         iter.return?.();
       },
     });
-    const parts = [s.name, sp.get("split") || (s.kind === "sft" ? "all" : ""), sp.get("edited") === "1" ? "edited" : "", sp.get("q") ? "filtered" : ""];
+    const parts = [s.kind === "sft" ? s.name : `${s.db}.${s.table}`, sp.get("split") || (s.kind === "sft" ? "all" : ""), sp.get("edited") === "1" ? "edited" : "", sp.get("q") ? "filtered" : ""];
     const filename = parts.filter(Boolean).join("_") + ".jsonl";
     return new Response(stream, {
       headers: {

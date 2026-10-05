@@ -3,7 +3,7 @@
 用法：python unpack.py [--out dist]
 结果：
   dist/sft/<task>/train.jsonl | val.jsonl | test.jsonl | meta.jsonl
-  dist/datasets/<name>.csv（UTF-8 with BOM）
+  dist/datasets/<库>.<表>.csv（UTF-8 with BOM）
 """
 import argparse
 import glob
@@ -39,11 +39,13 @@ def main():
             n = merge(os.path.join(task_dir, f"{task}_{split}-*.jsonl.gz"), os.path.join(a.out, "sft", task, f"{split}.jsonl"))
             if n:
                 print(f"sft/{task}/{split}.jsonl <- {n} shards")
-    for ds_dir in sorted(glob.glob(os.path.join(src, "datasets", "*/"))):
-        name = os.path.basename(ds_dir.rstrip("/"))
-        n = merge(os.path.join(ds_dir, f"{name}-*.csv.gz"), os.path.join(a.out, "datasets", f"{name}.csv"), skip_header=True)
+    # 明细数据集按“库/表”存放：output/datasets/<库>/<表>/<表>-xxxxx.csv.gz -> dist/datasets/<库>.<表>.csv
+    for ds_dir in sorted(glob.glob(os.path.join(src, "datasets", "*", "*/"))):
+        table = os.path.basename(ds_dir.rstrip("/"))
+        db = os.path.basename(os.path.dirname(ds_dir.rstrip("/")))
+        n = merge(os.path.join(ds_dir, f"{table}-*.csv.gz"), os.path.join(a.out, "datasets", f"{db}.{table}.csv"), skip_header=True)
         if n:
-            print(f"datasets/{name}.csv <- {n} shards")
+            print(f"datasets/{db}.{table}.csv <- {n} shards")
 
 
 if __name__ == "__main__":

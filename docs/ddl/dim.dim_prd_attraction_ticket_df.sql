@@ -1,0 +1,40 @@
+-- 景区产品详情数据集
+CREATE TABLE IF NOT EXISTS dim.dim_prd_attraction_ticket_df (
+  prd_id                   STRING COMMENT '产品ID（交付主键）',
+  ota_ticket_no            STRING COMMENT 'OTA（携程）商品/资源编号',
+  attraction_id            STRING COMMENT '景区ID（携程景区POI编号）',
+  attraction_name          STRING COMMENT '景区名称',
+  attraction_province_name STRING COMMENT '景区所在省份（由商品文本推断）',
+  attraction_city_name     STRING COMMENT '景区所在城市（由商品文本推断）',
+  attraction_category_type BIGINT COMMENT '景区类别编码：1-主题乐园 2-动物园/海洋馆 3-博物馆/展馆 4-演艺/秀场 5-温泉度假 6-古镇古村 7-宗教寺观 8-历史遗迹 9-滨海海岛 10-湖泊水域 11-山岳峡谷 12-自然生态 13-城市地标',
+  attraction_category_name STRING COMMENT '景区类别名称',
+  attraction_heat_level    BIGINT COMMENT '景区热度等级（按销量分位推断，非官方A级）：1-5A 2-4A 3-3A 4-2A 5-未评级',
+  ticket_type              BIGINT COMMENT '票类型编码：1-景点门票 2-门票套餐 3-官方服务 4-研学体验 5-讲解服务 6-直通车 7-景点联票 8-项目体验 9-一日游 10-当地特色 11-跟团司导',
+  ticket_type_name         STRING COMMENT '票类型名称',
+  prd_name                 STRING COMMENT '产品名称（携程原始商品名）',
+  list_price_amt           DOUBLE COMMENT '展示价/起价（元）',
+  sales_qty                BIGINT COMMENT '销量（展示文本解析的下限值）',
+  sales_raw_desc           STRING COMMENT '销量原始展示文本（如“月销600+份”）',
+  is_base_ticket           BIGINT COMMENT '是否基础门票：0-否 1-是',
+  feature_tags             STRING COMMENT '产品特征标签（多值以|分隔，15类：含讲解/含交通/亲子儿童等）',
+  target_segment_tags      STRING COMMENT '适配客群（特征-客群偏好打分Top2，多值以|分隔）',
+  applicable_crowd_tags    STRING COMMENT '适用人群（成人/儿童/学生/老人/亲子/家庭，多值以|分隔；不限=无限制）',
+  play_duration_desc       STRING COMMENT '游玩/活动时长（小时，可能为区间如1-1.5）',
+  booking_advance_day_qty  BIGINT COMMENT '需提前预订天数：0-可订今日 1-可订明日 N-需提前N天 空-未说明',
+  refund_policy_type       BIGINT COMMENT '退改政策：0-未说明 1-随时退 2-有条件退 3-不可退',
+  entry_method_type        BIGINT COMMENT '入园方式：0-未说明 1-电子凭证直接入园 2-需换票/集合',
+  ticket_issue_type        BIGINT COMMENT '出票速度：0-未说明 1-立即出票 2-1小时内出票 3-大于1小时出票',
+  is_id_card_required      BIGINT COMMENT '是否需要有效证件：0-否 1-是',
+  cost_price_amt           DOUBLE COMMENT '成本价（元，按票类型成本率区间派生）',
+  floor_price_amt          DOUBLE COMMENT '最低保底价（元）',
+  ceiling_price_amt        DOUBLE COMMENT '最高限价（元）',
+  premium_rate             DOUBLE COMMENT '溢价系数（动态定价上调倍数）',
+  discount_rate            DOUBLE COMMENT '折扣系数（动态定价下调倍数）',
+  daily_inventory_qty      BIGINT COMMENT '日库存（张）',
+  cost_inclusion_desc      STRING COMMENT '费用包含（携程原文）',
+  purchase_notes_desc      STRING COMMENT '购买须知（携程原文）',
+  data_source_type         BIGINT COMMENT '数据来源：1-携程真实商品+规则派生字段'
+)
+COMMENT '景区门票产品维表（天级全量快照）：携程在售景区门票/套餐/服务商品及解析、派生属性'
+PARTITIONED BY (travel_date STRING COMMENT '分区日期，格式YYYYMMDD（快照日期（商品采集日））')
+STORED AS ORC;

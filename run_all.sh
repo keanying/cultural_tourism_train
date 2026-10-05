@@ -7,6 +7,7 @@ python -m distill.catalog
 python -m distill.build_datasets
 python -m distill.build_sft
 python -m distill.validate
+python -m distill.dictionary   # 数据字典与 DDL（docs/）
 # 可选：大模型润色（需配置 LLM_PROVIDER / LLM_API_KEY / LLM_MODEL）
 # python -m distill.llm_refine --task combo_recommend --ratio 0.2
 # python -m distill.llm_refine --task dynamic_pricing --ratio 0.1

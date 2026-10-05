@@ -3,7 +3,7 @@
 import { Alert, Button, Chip, Drawer, Label, Spinner, Tabs, TextArea, TextField, Input, toast, useOverlayState } from "@heroui/react";
 import { useEffect, useMemo, useState } from "react";
 import { joinAssistant, prettyJson, pyDumps, splitAssistant, validateSft } from "@/lib/sft";
-import { SPLIT_LABEL, type SourceInfo } from "@/lib/types";
+import { decodeEnum, shortLabel, SPLIT_LABEL, type SourceInfo } from "@/lib/types";
 
 type Log = { ts: string; field: string; old_value: string | null; new_value: string | null };
 
@@ -35,7 +35,7 @@ export function EditDrawer({ source, rowId, onClose, onSaved }: Props) {
       .catch((e) => setError(e.message));
   }, [rowId, source.name, reloadKey]);
 
-  const title = source.kind === "sft" ? `训练样本 ${row?.sid ?? ""}` : `${source.title} · 第 ${rowId} 行`;
+  const title = source.kind === "sft" ? `训练样本 ${row?.sid ?? ""}` : `${source.db}.${source.table} · row_id=${rowId}`;
 
   return (
     <Drawer state={state}>
@@ -108,19 +108,26 @@ function DatasetForm({ source, row, logs, onSaved, onCancel }: { source: SourceI
       <Drawer.Body className="space-y-6">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {source.columns.map((c) => {
-            const long = (values[c]?.length ?? 0) > 60 || ["purchase_notes", "cost_inclusion"].includes(c);
+            const long = (values[c]?.length ?? 0) > 60 || ["purchase_notes_desc", "cost_inclusion_desc"].includes(c);
             return (
               <TextField key={c} value={values[c]} onChange={(v) => setValues((s) => ({ ...s, [c]: v }))} className={long ? "md:col-span-2" : ""}>
                 <Label>
-                  {source.labels[c] ?? c} <span className="font-mono text-xs text-muted">{c}</span>
+                  {shortLabel(source.labels[c], c)} <span className="font-mono text-xs text-muted">{c}</span>
                   {values[c] !== initial[c] ? <span className="ml-1 text-xs text-accent">●已改</span> : null}
                 </Label>
-                {long ? <TextArea rows={c === "purchase_notes" ? 8 : 3} /> : <Input />}
+                {long ? <TextArea rows={c === "purchase_notes_desc" ? 8 : 3} /> : <Input />}
+                {source.enums[c] ? (
+                  <p className="text-xs text-muted">
+                    当前：{decodeEnum(source.enums, c, values[c]) ?? "（空）"}；可选：{Object.entries(source.enums[c]).map(([k, v]) => `${k}-${v}`).join(" ")}
+                  </p>
+                ) : source.labels[c] && source.labels[c] !== shortLabel(source.labels[c], c) ? (
+                  <p className="text-xs text-muted">{source.labels[c]}</p>
+                ) : null}
               </TextField>
             );
           })}
         </div>
-        <EditLogs logs={logs} labels={source.labels} />
+        <EditLogs logs={logs} labels={Object.fromEntries(Object.entries(source.labels).map(([k, v]) => [k, shortLabel(v, k)]))} />
       </Drawer.Body>
       <Drawer.Footer>
         <span className="mr-auto text-sm text-muted">{dirty.length ? `${dirty.length} 个字段待保存` : "未修改"}</span>
@@ -229,7 +236,7 @@ function SftForm({ source, row, logs, onSaved, onCancel }: { source: SourceInfo;
             <pre className="whitespace-pre-wrap rounded-lg bg-surface-secondary p-4 font-mono text-xs">{meta}</pre>
           </Tabs.Panel>
           <Tabs.Panel id="logs" className="pt-4">
-            <EditLogs logs={logs} labels={{ user: "用户输入", assistant: "回答" }} />
+            <EditLogs logs={logs} labels={{ user_content: "用户输入", assistant_content: "回答" }} />
           </Tabs.Panel>
         </Tabs>
       </Drawer.Body>

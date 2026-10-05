@@ -2,6 +2,186 @@
   "passed": true,
   "checks": [
     {
+      "check": "dim.dim_prd_attraction_ticket_df 表名符合 分层_业务域_实体_粒度",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "dim.dim_prd_attraction_ticket_df 字段名 snake_case",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "dim.dim_prd_attraction_ticket_df 表与字段均有注释",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "dim.dim_prd_attraction_ticket_df 类型/状态/等级字段注释含取值说明",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "dim.dim_prd_attraction_ticket_df 编码字段取值均在枚举定义内",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "dim.dim_prd_attraction_ticket_df 分区字段 travel_date 为 YYYYMMDD",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "dws.dws_cus_traveler_profile_df 表名符合 分层_业务域_实体_粒度",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "dws.dws_cus_traveler_profile_df 字段名 snake_case",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "dws.dws_cus_traveler_profile_df 表与字段均有注释",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "dws.dws_cus_traveler_profile_df 类型/状态/等级字段注释含取值说明",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "dws.dws_cus_traveler_profile_df 编码字段取值均在枚举定义内",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "dws.dws_cus_traveler_profile_df 分区字段 travel_date 为 YYYYMMDD",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "dwd.dwd_ord_attraction_ticket_order_di 表名符合 分层_业务域_实体_粒度",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "dwd.dwd_ord_attraction_ticket_order_di 字段名 snake_case",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "dwd.dwd_ord_attraction_ticket_order_di 表与字段均有注释",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "dwd.dwd_ord_attraction_ticket_order_di 类型/状态/等级字段注释含取值说明",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "dwd.dwd_ord_attraction_ticket_order_di 编码字段取值均在枚举定义内",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "dwd.dwd_ord_attraction_ticket_order_di 分区字段 travel_date 为 YYYYMMDD",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "dwd.dwd_cus_traveler_trajectory_di 表名符合 分层_业务域_实体_粒度",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "dwd.dwd_cus_traveler_trajectory_di 字段名 snake_case",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "dwd.dwd_cus_traveler_trajectory_di 表与字段均有注释",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "dwd.dwd_cus_traveler_trajectory_di 类型/状态/等级字段注释含取值说明",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "dwd.dwd_cus_traveler_trajectory_di 编码字段取值均在枚举定义内",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "dwd.dwd_cus_traveler_trajectory_di 分区字段 travel_date 为 YYYYMMDD",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "dws.dws_trf_attraction_channel_sales_mo 表名符合 分层_业务域_实体_粒度",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "dws.dws_trf_attraction_channel_sales_mo 字段名 snake_case",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "dws.dws_trf_attraction_channel_sales_mo 表与字段均有注释",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "dws.dws_trf_attraction_channel_sales_mo 类型/状态/等级字段注释含取值说明",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "dws.dws_trf_attraction_channel_sales_mo 编码字段取值均在枚举定义内",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "dws.dws_trf_attraction_channel_sales_mo 分区字段 travel_date 为 YYYYMMDD",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "dws.dws_opr_attraction_operation_di 表名符合 分层_业务域_实体_粒度",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "dws.dws_opr_attraction_operation_di 字段名 snake_case",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "dws.dws_opr_attraction_operation_di 表与字段均有注释",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "dws.dws_opr_attraction_operation_di 类型/状态/等级字段注释含取值说明",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "dws.dws_opr_attraction_operation_di 编码字段取值均在枚举定义内",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "dws.dws_opr_attraction_operation_di 分区字段 travel_date 为 YYYYMMDD",
+      "passed": true,
+      "detail": ""
+    },
+    {
       "check": "scenic_product_detail 行数=200000",
       "passed": true,
       "detail": "实际 200000"

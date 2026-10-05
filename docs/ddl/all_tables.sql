@@ -1,0 +1,267 @@
+-- 文旅大模型训练数据：建表语句（按客户数仓命名规范）
+CREATE DATABASE IF NOT EXISTS dim;
+CREATE DATABASE IF NOT EXISTS dwd;
+CREATE DATABASE IF NOT EXISTS dws;
+
+-- 景区产品详情数据集
+CREATE TABLE IF NOT EXISTS dim.dim_prd_attraction_ticket_df (
+  prd_id                   STRING COMMENT '产品ID（交付主键）',
+  ota_ticket_no            STRING COMMENT 'OTA（携程）商品/资源编号',
+  attraction_id            STRING COMMENT '景区ID（携程景区POI编号）',
+  attraction_name          STRING COMMENT '景区名称',
+  attraction_province_name STRING COMMENT '景区所在省份（由商品文本推断）',
+  attraction_city_name     STRING COMMENT '景区所在城市（由商品文本推断）',
+  attraction_category_type BIGINT COMMENT '景区类别编码：1-主题乐园 2-动物园/海洋馆 3-博物馆/展馆 4-演艺/秀场 5-温泉度假 6-古镇古村 7-宗教寺观 8-历史遗迹 9-滨海海岛 10-湖泊水域 11-山岳峡谷 12-自然生态 13-城市地标',
+  attraction_category_name STRING COMMENT '景区类别名称',
+  attraction_heat_level    BIGINT COMMENT '景区热度等级（按销量分位推断，非官方A级）：1-5A 2-4A 3-3A 4-2A 5-未评级',
+  ticket_type              BIGINT COMMENT '票类型编码：1-景点门票 2-门票套餐 3-官方服务 4-研学体验 5-讲解服务 6-直通车 7-景点联票 8-项目体验 9-一日游 10-当地特色 11-跟团司导',
+  ticket_type_name         STRING COMMENT '票类型名称',
+  prd_name                 STRING COMMENT '产品名称（携程原始商品名）',
+  list_price_amt           DOUBLE COMMENT '展示价/起价（元）',
+  sales_qty                BIGINT COMMENT '销量（展示文本解析的下限值）',
+  sales_raw_desc           STRING COMMENT '销量原始展示文本（如“月销600+份”）',
+  is_base_ticket           BIGINT COMMENT '是否基础门票：0-否 1-是',
+  feature_tags             STRING COMMENT '产品特征标签（多值以|分隔，15类：含讲解/含交通/亲子儿童等）',
+  target_segment_tags      STRING COMMENT '适配客群（特征-客群偏好打分Top2，多值以|分隔）',
+  applicable_crowd_tags    STRING COMMENT '适用人群（成人/儿童/学生/老人/亲子/家庭，多值以|分隔；不限=无限制）',
+  play_duration_desc       STRING COMMENT '游玩/活动时长（小时，可能为区间如1-1.5）',
+  booking_advance_day_qty  BIGINT COMMENT '需提前预订天数：0-可订今日 1-可订明日 N-需提前N天 空-未说明',
+  refund_policy_type       BIGINT COMMENT '退改政策：0-未说明 1-随时退 2-有条件退 3-不可退',
+  entry_method_type        BIGINT COMMENT '入园方式：0-未说明 1-电子凭证直接入园 2-需换票/集合',
+  ticket_issue_type        BIGINT COMMENT '出票速度：0-未说明 1-立即出票 2-1小时内出票 3-大于1小时出票',
+  is_id_card_required      BIGINT COMMENT '是否需要有效证件：0-否 1-是',
+  cost_price_amt           DOUBLE COMMENT '成本价（元，按票类型成本率区间派生）',
+  floor_price_amt          DOUBLE COMMENT '最低保底价（元）',
+  ceiling_price_amt        DOUBLE COMMENT '最高限价（元）',
+  premium_rate             DOUBLE COMMENT '溢价系数（动态定价上调倍数）',
+  discount_rate            DOUBLE COMMENT '折扣系数（动态定价下调倍数）',
+  daily_inventory_qty      BIGINT COMMENT '日库存（张）',
+  cost_inclusion_desc      STRING COMMENT '费用包含（携程原文）',
+  purchase_notes_desc      STRING COMMENT '购买须知（携程原文）',
+  data_source_type         BIGINT COMMENT '数据来源：1-携程真实商品+规则派生字段'
+)
+COMMENT '景区门票产品维表（天级全量快照）：携程在售景区门票/套餐/服务商品及解析、派生属性'
+PARTITIONED BY (travel_date STRING COMMENT '分区日期，格式YYYYMMDD（快照日期（商品采集日））')
+STORED AS ORC;
+
+-- 景区游客画像数据集
+CREATE TABLE IF NOT EXISTS dws.dws_cus_traveler_profile_df (
+  traveler_id             STRING COMMENT '游客ID',
+  gender_type             BIGINT COMMENT '性别：1-男 2-女',
+  traveler_age            BIGINT COMMENT '年龄（周岁）',
+  age_range_name          STRING COMMENT '年龄段（如25-29、60+）',
+  home_province_name      STRING COMMENT '客源省份',
+  home_city_name          STRING COMMENT '客源城市',
+  home_city_level         BIGINT COMMENT '客源城市等级：1-1线 2-2线 3-3线 4-4线及以下',
+  traveler_segment_type   BIGINT COMMENT '出游客群编码：1-亲子游 2-情侣游 3-朋友结伴 4-独自旅行 5-银发游 6-家庭多代游 7-商务差旅 8-学生游',
+  traveler_segment_name   STRING COMMENT '出游客群名称',
+  companion_desc          STRING COMMENT '同行结构描述（如2大1小）',
+  adult_qty               BIGINT COMMENT '同行成人数',
+  child_qty               BIGINT COMMENT '同行儿童数',
+  senior_qty              BIGINT COMMENT '同行长者数',
+  child_age               BIGINT COMMENT '儿童年龄（无儿童为空）',
+  income_level            BIGINT COMMENT '收入水平：1-低 2-中 3-中高 4-高',
+  price_sensitivity_level BIGINT COMMENT '价格敏感度：1-低 2-中 3-高',
+  member_level            BIGINT COMMENT '会员等级：1-普通会员 2-银卡 3-金卡 4-铂金卡',
+  preferred_channel_code  BIGINT COMMENT '首选购票渠道：1-携程 2-美团 3-飞猪 4-抖音团购 5-小红书 6-同程旅行 7-景区官网/小程序 8-线下窗口 9-旅行社分销',
+  secondary_channel_code  BIGINT COMMENT '次选购票渠道：1-携程 2-美团 3-飞猪 4-抖音团购 5-小红书 6-同程旅行 7-景区官网/小程序 8-线下窗口 9-旅行社分销',
+  booking_lead_type       BIGINT COMMENT '提前预订习惯：1-当天 2-1-3天 3-4-7天 4-7天以上',
+  annual_trip_qty         BIGINT COMMENT '年出游次数',
+  preferred_category_tags STRING COMMENT '偏好景区类别Top3（多值以|分隔）',
+  interest_tags           STRING COMMENT '兴趣标签（多值以|分隔）',
+  device_type             BIGINT COMMENT '常用终端：1-iOS 2-Android 3-小程序 4-PC',
+  register_date           STRING COMMENT '注册日期（YYYY-MM-DD）',
+  valid_order_qty         BIGINT COMMENT '有效订单数（不含退款，由订单表回填）',
+  total_spend_amt         DOUBLE COMMENT '累计消费金额（元）',
+  last_visit_date         STRING COMMENT '最近到访日期（YYYY-MM-DD）',
+  favorite_province_name  STRING COMMENT '最常去省份',
+  avg_order_amt           DOUBLE COMMENT '平均订单金额（元）',
+  refund_order_qty        BIGINT COMMENT '退款订单数',
+  value_level             BIGINT COMMENT '客户价值分层：0-未消费 1-低价值 2-中价值 3-高价值'
+)
+COMMENT '游客画像宽表（天级全量快照）：游客基础属性、偏好与消费汇总（虚拟ID，无真实个人信息）'
+PARTITIONED BY (travel_date STRING COMMENT '分区日期，格式YYYYMMDD（快照日期（画像统计截止日））')
+STORED AS ORC;
+
+-- 景区游客消费数据集
+CREATE TABLE IF NOT EXISTS dwd.dwd_ord_attraction_ticket_order_di (
+  order_no                 STRING COMMENT '订单编号',
+  traveler_id              STRING COMMENT '游客ID',
+  trip_no                  STRING COMMENT '行程编号',
+  attraction_id            STRING COMMENT '景区ID（携程景区POI编号）',
+  attraction_name          STRING COMMENT '景区名称',
+  attraction_province_name STRING COMMENT '景区所在省份（由商品文本推断）',
+  attraction_city_name     STRING COMMENT '景区所在城市（由商品文本推断）',
+  attraction_category_type BIGINT COMMENT '景区类别编码：1-主题乐园 2-动物园/海洋馆 3-博物馆/展馆 4-演艺/秀场 5-温泉度假 6-古镇古村 7-宗教寺观 8-历史遗迹 9-滨海海岛 10-湖泊水域 11-山岳峡谷 12-自然生态 13-城市地标',
+  attraction_category_name STRING COMMENT '景区类别名称',
+  prd_id                   STRING COMMENT '产品ID',
+  prd_name                 STRING COMMENT '产品名称',
+  ticket_type              BIGINT COMMENT '票类型编码：1-景点门票 2-门票套餐 3-官方服务 4-研学体验 5-讲解服务 6-直通车 7-景点联票 8-项目体验 9-一日游 10-当地特色 11-跟团司导',
+  ticket_type_name         STRING COMMENT '票类型名称',
+  sales_channel_code       BIGINT COMMENT '购买渠道编码：1-携程 2-美团 3-飞猪 4-抖音团购 5-小红书 6-同程旅行 7-景区官网/小程序 8-线下窗口 9-旅行社分销',
+  sales_channel_name       STRING COMMENT '购买渠道名称',
+  order_time               STRING COMMENT '下单时间（YYYY-MM-DD HH:MM:SS）',
+  visit_date               STRING COMMENT '游玩日期（YYYY-MM-DD）',
+  booking_lead_day_qty     BIGINT COMMENT '提前预订天数',
+  adult_qty                BIGINT COMMENT '成人票数',
+  child_qty                BIGINT COMMENT '儿童票数',
+  senior_qty               BIGINT COMMENT '长者票数',
+  ticket_qty               BIGINT COMMENT '总票数',
+  unit_price_amt           DOUBLE COMMENT '渠道成交单价（元）',
+  original_amt             DOUBLE COMMENT '原价总额（元，门票类儿童/长者半价）',
+  coupon_amt               DOUBLE COMMENT '优惠券金额（元）',
+  paid_amt                 DOUBLE COMMENT '实付金额（元）=原价总额-优惠券金额',
+  pay_method_type          BIGINT COMMENT '支付方式：1-微信支付 2-支付宝 3-银行卡 4-信用卡 5-花呗/分期',
+  order_status             BIGINT COMMENT '订单状态编码：1-已核销 2-已退款 3-已过期未使用',
+  order_status_name        STRING COMMENT '订单状态名称',
+  refund_reason_type       BIGINT COMMENT '退款原因：0-无 1-天气原因 2-行程变更 3-价格原因 4-重复购买 5-临时有事',
+  refund_amt               DOUBLE COMMENT '退款金额（元）',
+  addon_prd_id             STRING COMMENT '园内加购产品ID（组合推荐真实转化，空=未加购）',
+  addon_amt                DOUBLE COMMENT '加购金额（元）',
+  secondary_spend_amt      DOUBLE COMMENT '园内二次消费金额（元）',
+  secondary_spend_desc     STRING COMMENT '二次消费明细（项目:金额，以;分隔）',
+  total_spend_amt          DOUBLE COMMENT '订单总消费（元）=实付+加购+二次消费，退款订单为0',
+  review_rating_level      BIGINT COMMENT '游客评分（空=未评价）：1-很差 2-较差 3-一般 4-满意 5-非常满意',
+  visit_weather_type       BIGINT COMMENT '游玩日天气编码：1-晴 2-多云 3-阴 4-雾霾 5-晴热高温 6-小雨 7-雷阵雨 8-中雨 9-大雨 10-小雪 11-中雪',
+  visit_weather_name       STRING COMMENT '游玩日天气名称',
+  visit_day_type           BIGINT COMMENT '游玩日日期类型编码：1-工作日 2-周末 3-法定节假日 4-调休工作日',
+  visit_day_type_name      STRING COMMENT '游玩日日期类型名称',
+  holiday_name             STRING COMMENT '法定节假日名称（非节假日为空）',
+  traveler_segment_type    BIGINT COMMENT '出游客群：1-亲子游 2-情侣游 3-朋友结伴 4-独自旅行 5-银发游 6-家庭多代游 7-商务差旅 8-学生游',
+  member_level             BIGINT COMMENT '下单时会员等级：1-普通会员 2-银卡 3-金卡 4-铂金卡'
+)
+COMMENT '景区门票订单明细天增量表：游客下单、支付、核销/退款与园内二次消费'
+PARTITIONED BY (travel_date STRING COMMENT '分区日期，格式YYYYMMDD（游玩日期）')
+STORED AS ORC;
+
+-- 游客出行轨迹数据集
+CREATE TABLE IF NOT EXISTS dwd.dwd_cus_traveler_trajectory_di (
+  trajectory_no            STRING COMMENT '轨迹点编号（行程编号-序号）',
+  trip_no                  STRING COMMENT '行程编号',
+  traveler_id              STRING COMMENT '游客ID',
+  trip_seq_no              BIGINT COMMENT '行程内到访序号',
+  attraction_id            STRING COMMENT '景区ID（携程景区POI编号）',
+  attraction_name          STRING COMMENT '景区名称',
+  attraction_province_name STRING COMMENT '景区所在省份（由商品文本推断）',
+  attraction_city_name     STRING COMMENT '景区所在城市（由商品文本推断）',
+  attraction_category_type BIGINT COMMENT '景区类别编码：1-主题乐园 2-动物园/海洋馆 3-博物馆/展馆 4-演艺/秀场 5-温泉度假 6-古镇古村 7-宗教寺观 8-历史遗迹 9-滨海海岛 10-湖泊水域 11-山岳峡谷 12-自然生态 13-城市地标',
+  attraction_category_name STRING COMMENT '景区类别名称',
+  attraction_lat           DOUBLE COMMENT '景区纬度（城市中心加扰动，近似值）',
+  attraction_lon           DOUBLE COMMENT '景区经度（近似值）',
+  visit_date               STRING COMMENT '到访日期（YYYY-MM-DD）',
+  arrive_time              STRING COMMENT '到达时间（YYYY-MM-DD HH:MM）',
+  leave_time               STRING COMMENT '离开时间（YYYY-MM-DD HH:MM）',
+  stay_minute_qty          BIGINT COMMENT '停留时长（分钟）',
+  transport_type           BIGINT COMMENT '从上一点出发的交通方式：1-飞机 2-高铁 3-大巴 4-自驾 5-打车 6-地铁/公交 7-景区直通车 8-步行/骑行',
+  prev_leg_distance_km     DOUBLE COMMENT '与上一点的距离（公里，首站为距出发城市）',
+  origin_city_name         STRING COMMENT '出发城市（仅首站填写）',
+  trip_type                BIGINT COMMENT '行程类型：1-省内周边游 2-跨省游',
+  trip_day_qty             BIGINT COMMENT '行程天数',
+  weather_type             BIGINT COMMENT '天气编码：1-晴 2-多云 3-阴 4-雾霾 5-晴热高温 6-小雨 7-雷阵雨 8-中雨 9-大雨 10-小雪 11-中雪',
+  weather_name             STRING COMMENT '天气名称',
+  high_temperature         BIGINT COMMENT '最高气温（摄氏度）',
+  day_type                 BIGINT COMMENT '日期类型编码：1-工作日 2-周末 3-法定节假日 4-调休工作日',
+  day_type_name            STRING COMMENT '日期类型名称',
+  order_no                 STRING COMMENT '关联订单编号（空=现场购票/免费游览）',
+  entry_type               BIGINT COMMENT '入园方式：1-线上订单 2-现场购票/免费游览',
+  traveler_segment_type    BIGINT COMMENT '出游客群：1-亲子游 2-情侣游 3-朋友结伴 4-独自旅行 5-银发游 6-家庭多代游 7-商务差旅 8-学生游'
+)
+COMMENT '游客出行轨迹明细天增量表：一行一个到访景区点（退款/未使用订单不产生轨迹）'
+PARTITIONED BY (travel_date STRING COMMENT '分区日期，格式YYYYMMDD（到访日期）')
+STORED AS ORC;
+
+-- 景区分销渠道数据集
+CREATE TABLE IF NOT EXISTS dws.dws_trf_attraction_channel_sales_mo (
+  stat_month               STRING COMMENT '统计月份（YYYY-MM）',
+  attraction_id            STRING COMMENT '景区ID（携程景区POI编号）',
+  attraction_name          STRING COMMENT '景区名称',
+  attraction_province_name STRING COMMENT '景区所在省份（由商品文本推断）',
+  attraction_city_name     STRING COMMENT '景区所在城市（由商品文本推断）',
+  attraction_category_type BIGINT COMMENT '景区类别编码：1-主题乐园 2-动物园/海洋馆 3-博物馆/展馆 4-演艺/秀场 5-温泉度假 6-古镇古村 7-宗教寺观 8-历史遗迹 9-滨海海岛 10-湖泊水域 11-山岳峡谷 12-自然生态 13-城市地标',
+  attraction_category_name STRING COMMENT '景区类别名称',
+  prd_id                   STRING COMMENT '产品ID',
+  prd_name                 STRING COMMENT '产品名称',
+  ticket_type              BIGINT COMMENT '票类型编码：1-景点门票 2-门票套餐 3-官方服务 4-研学体验 5-讲解服务 6-直通车 7-景点联票 8-项目体验 9-一日游 10-当地特色 11-跟团司导',
+  ticket_type_name         STRING COMMENT '票类型名称',
+  sales_channel_code       BIGINT COMMENT '销售渠道编码：1-携程 2-美团 3-飞猪 4-抖音团购 5-小红书 6-同程旅行 7-景区官网/小程序 8-线下窗口 9-旅行社分销',
+  sales_channel_name       STRING COMMENT '销售渠道名称',
+  sales_channel_type       BIGINT COMMENT '渠道类型：1-OTA 2-内容电商 3-内容种草 4-自营直销 5-线下 6-B2B分销',
+  list_price_amt           DOUBLE COMMENT '产品标价（元）',
+  channel_price_amt        DOUBLE COMMENT '渠道售价（元）',
+  commission_rate          DOUBLE COMMENT '渠道佣金率（0-1）',
+  exposure_qty             BIGINT COMMENT '曝光量（线下窗口/旅行社分销为空）',
+  click_qty                BIGINT COMMENT '点击量',
+  click_rate               DOUBLE COMMENT '点击率=点击量/曝光量',
+  order_qty                BIGINT COMMENT '订单量',
+  conversion_rate          DOUBLE COMMENT '转化率=订单量/点击量',
+  ticket_sold_qty          BIGINT COMMENT '售票张数',
+  gmv_amt                  DOUBLE COMMENT '成交总额GMV（元）',
+  commission_amt           DOUBLE COMMENT '佣金金额（元）',
+  refund_order_qty         BIGINT COMMENT '退款订单量',
+  refund_rate              DOUBLE COMMENT '退款率=退款订单量/订单量',
+  net_revenue_amt          DOUBLE COMMENT '扣佣净收入（元）',
+  marketing_spend_amt      DOUBLE COMMENT '营销投放费用（元）',
+  roas_rate                DOUBLE COMMENT '投放回报率ROAS=GMV/营销投放费用',
+  cpa_amt                  DOUBLE COMMENT '单订单获客成本（元）',
+  new_customer_rate        DOUBLE COMMENT '新客占比（0-1）',
+  avg_booking_lead_day_qty DOUBLE COMMENT '平均提前预订天数',
+  main_segment_type        BIGINT COMMENT '主力客群：1-亲子游 2-情侣游 3-朋友结伴 4-独自旅行 5-银发游 6-家庭多代游 7-商务差旅 8-学生游',
+  segment_family_rate      DOUBLE COMMENT '亲子游客群占比（0-1）',
+  segment_couple_rate      DOUBLE COMMENT '情侣游客群占比（0-1）',
+  segment_friends_rate     DOUBLE COMMENT '朋友结伴客群占比（0-1）',
+  segment_solo_rate        DOUBLE COMMENT '独自旅行客群占比（0-1）',
+  segment_senior_rate      DOUBLE COMMENT '银发游客群占比（0-1）',
+  segment_multigen_rate    DOUBLE COMMENT '家庭多代游客群占比（0-1）',
+  segment_business_rate    DOUBLE COMMENT '商务差旅客群占比（0-1）',
+  segment_student_rate     DOUBLE COMMENT '学生游客群占比（0-1）'
+)
+COMMENT '景区产品分渠道销售月汇总表：统计月×景区×产品×渠道的曝光、转化、销售、佣金、投放与客群结构'
+PARTITIONED BY (travel_date STRING COMMENT '分区日期，格式YYYYMMDD（统计月份首日）')
+STORED AS ORC;
+
+-- 景区日度客流与运营数据（辅助表）
+CREATE TABLE IF NOT EXISTS dws.dws_opr_attraction_operation_di (
+  stat_date                STRING COMMENT '统计日期（YYYY-MM-DD）',
+  attraction_id            STRING COMMENT '景区ID（携程景区POI编号）',
+  attraction_name          STRING COMMENT '景区名称',
+  attraction_province_name STRING COMMENT '景区所在省份（由商品文本推断）',
+  attraction_city_name     STRING COMMENT '景区所在城市（由商品文本推断）',
+  attraction_category_type BIGINT COMMENT '景区类别编码：1-主题乐园 2-动物园/海洋馆 3-博物馆/展馆 4-演艺/秀场 5-温泉度假 6-古镇古村 7-宗教寺观 8-历史遗迹 9-滨海海岛 10-湖泊水域 11-山岳峡谷 12-自然生态 13-城市地标',
+  attraction_category_name STRING COMMENT '景区类别名称',
+  is_indoor                BIGINT COMMENT '是否室内景区：0-否 1-是',
+  week_day_no              BIGINT COMMENT '星期：1-周一 2-周二 3-周三 4-周四 5-周五 6-周六 7-周日',
+  day_type                 BIGINT COMMENT '日期类型编码：1-工作日 2-周末 3-法定节假日 4-调休工作日',
+  day_type_name            STRING COMMENT '日期类型名称',
+  holiday_name             STRING COMMENT '法定节假日名称（国务院放假安排，非节假日为空）',
+  school_holiday_type      BIGINT COMMENT '寒暑假：0-非寒暑假 1-寒假 2-暑假',
+  season_type              BIGINT COMMENT '业务季节：1-平季 2-暑期旺季 3-冬季淡季 4-春秋旺季 5-秋季旺季 6-寒假平季 7-春节黄金周 8-国庆黄金周 9-五一小长假 10-清明节小长假 11-端午节小长假 12-中秋节小长假 13-元旦小长假',
+  weather_type             BIGINT COMMENT '天气编码：1-晴 2-多云 3-阴 4-雾霾 5-晴热高温 6-小雨 7-雷阵雨 8-中雨 9-大雨 10-小雪 11-中雪',
+  weather_name             STRING COMMENT '天气名称',
+  high_temperature         BIGINT COMMENT '最高气温（摄氏度）',
+  low_temperature          BIGINT COMMENT '最低气温（摄氏度）',
+  event_name               STRING COMMENT '节庆活动名称（无活动为空）',
+  base_prd_id              STRING COMMENT '基础门票产品ID',
+  list_price_amt           DOUBLE COMMENT '门票标价（元）',
+  executed_price_amt       DOUBLE COMMENT '当日执行票价（元）',
+  competitor_avg_price_amt DOUBLE COMMENT '周边竞品均价（元）',
+  daily_capacity_qty       BIGINT COMMENT '日最大承载量（人）',
+  traveler_qty             BIGINT COMMENT '实际入园人数',
+  load_rate                DOUBLE COMMENT '承载率=入园人数/日最大承载量',
+  is_sold_out              BIGINT COMMENT '是否满载：0-否 1-是',
+  online_booking_qty       BIGINT COMMENT '线上预约入园人数',
+  offline_traveler_qty     BIGINT COMMENT '线下购票入园人数',
+  booked_d7_qty            BIGINT COMMENT '截至游玩日前7天累计线上预约人数',
+  booked_d3_qty            BIGINT COMMENT '截至游玩日前3天累计线上预约人数',
+  booked_d1_qty            BIGINT COMMENT '截至游玩日前1天累计线上预约人数',
+  refund_order_qty         BIGINT COMMENT '退款订单量',
+  ticket_revenue_amt       DOUBLE COMMENT '门票收入（元）',
+  secondary_revenue_amt    DOUBLE COMMENT '二次消费收入（元）',
+  total_revenue_amt        DOUBLE COMMENT '总收入（元）=门票收入+二次消费收入',
+  avg_spend_amt            DOUBLE COMMENT '人均消费（元）',
+  marketing_spend_amt      DOUBLE COMMENT '营销费用（元）',
+  satisfaction_score       DOUBLE COMMENT '满意度均分（1-5）',
+  complaint_qty            BIGINT COMMENT '投诉量'
+)
+COMMENT '景区日运营汇总天增量表：274个核心景区每日客流、预约进度、票价、收入、满意度及日历天气特征'
+PARTITIONED BY (travel_date STRING COMMENT '分区日期，格式YYYYMMDD（统计日期）')
+STORED AS ORC;

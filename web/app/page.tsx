@@ -4,7 +4,7 @@ import { Alert, Button, Chip, SearchField, Spinner, Switch, Tabs } from "@heroui
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { DataTable, type Column } from "@/components/DataTable";
 import { EditDrawer } from "@/components/EditDrawer";
-import { SPLIT_LABEL, type ListResult, type Row, type SourceInfo } from "@/lib/types";
+import { decodeEnum, shortLabel, SPLIT_LABEL, type ListResult, type Row, type SourceInfo } from "@/lib/types";
 
 const PAGE_SIZE = 20;
 
@@ -100,7 +100,14 @@ export default function Home() {
       ];
       return cols;
     }
-    return [...source.viewColumns.map((c) => ({ id: c, name: source.labels[c]?.replace(/（.*?）/g, "") ?? c })), editCol];
+    return [
+      ...source.viewColumns.map((c): Column => ({
+        id: c,
+        name: shortLabel(source.labels[c], c),
+        render: source.enums[c] ? (r) => <span className="whitespace-nowrap">{decodeEnum(source.enums, c, r[c]) ?? "—"}</span> : undefined,
+      })),
+      editCol,
+    ];
   }, [source]);
 
   const exportUrl = (withMeta = false) => {
@@ -154,8 +161,10 @@ export default function Home() {
                   <h2 className="text-2xl font-semibold">{source.title}</h2>
                   <Chip size="sm">{source.kind === "sft" ? "SFT 训练集" : "明细数据集"}</Chip>
                 </div>
+                {source.kind === "dataset" ? <p className="mt-1 text-sm text-muted">{source.comment}</p> : null}
                 <p className="mt-1 font-mono text-xs text-muted">
-                  {source.name} · 共 {source.rows.toLocaleString("zh-CN")} 条 · 已修改 {source.edited.toLocaleString("zh-CN")} 条
+                  {source.kind === "sft" ? `ads.ads_llm_sft_sample_f（task_code=${source.name}）` : `${source.db}.${source.table}`} · 共{" "}
+                  {source.rows.toLocaleString("zh-CN")} 条 · 已修改 {source.edited.toLocaleString("zh-CN")} 条
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -174,7 +183,7 @@ export default function Home() {
               <SearchField value={keyword} onChange={setKeyword} className="w-full max-w-sm" aria-label="搜索">
                 <SearchField.Group>
                   <SearchField.SearchIcon />
-                  <SearchField.Input placeholder={source.kind === "sft" ? "搜索样本内容或样本ID" : `搜索：${source.searchColumns.map((c) => source.labels[c]?.replace(/（.*?）/g, "") ?? c).join(" / ")}`} />
+                  <SearchField.Input placeholder={source.kind === "sft" ? "搜索样本内容或样本ID" : `搜索：${source.searchColumns.map((c) => shortLabel(source.labels[c], c)).join(" / ")}`} />
                   <SearchField.ClearButton />
                 </SearchField.Group>
               </SearchField>

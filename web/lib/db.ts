@@ -3,49 +3,70 @@ import fs from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
-const DB_PATH = process.env.CT_DB_PATH ?? path.join(/*turbopackIgnore: true*/ process.cwd(), "data", "ct.db");
+// 按客户命名规范分库：每个分层一个 SQLite 文件，ATTACH 后统一以“库.表”访问
+const DATA_DIR = process.env.CT_DATA_DIR ?? path.join(/*turbopackIgnore: true*/ process.cwd(), "data");
+const SCHEMAS = ["ads", "dim", "dwd", "dws"] as const;
+
+/** 训练样本、修改记录、数据源目录（ads 应用层） */
+export const SFT_TABLE = "ads.ads_llm_sft_sample_f";
+export const LOG_TABLE = "ads.ads_llm_data_edit_log_f";
+export const SOURCE_TABLE = "ads.ads_llm_data_source_f";
 
 let db: DatabaseSync | null = null;
 
 export function getDb(): DatabaseSync {
   if (!db) {
-    if (!fs.existsSync(/*turbopackIgnore: true*/ DB_PATH)) {
-      throw new Error(`数据库不存在：${DB_PATH}。请先在项目根目录运行 python -m distill.build_db`);
+    const missing = SCHEMAS.filter((s) => !fs.existsSync(/*turbopackIgnore: true*/ path.join(DATA_DIR, `${s}.db`)));
+    if (missing.length) {
+      throw new Error(`数据库文件缺失：${missing.map((s) => `${s}.db`).join("、")}（目录 ${DATA_DIR}）。请先在项目根目录运行 python -m distill.build_db`);
     }
-    db = new DatabaseSync(DB_PATH);
-    db.exec("PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;");
+    const d = new DatabaseSync(":memory:");
+    for (const s of SCHEMAS) {
+      d.exec(`ATTACH DATABASE '${path.join(DATA_DIR, `${s}.db`).replace(/'/g, "''")}' AS ${s}`);
+      d.exec(`PRAGMA ${s}.journal_mode=WAL;`);
+    }
+    d.exec("PRAGMA busy_timeout=5000;");
+    db = d;
   }
   return db;
 }
 
 export type Source = {
   name: string;
+  db: string;
+  table: string;
   title: string;
+  comment: string;
   kind: "dataset" | "sft";
   rows: number;
   columns: string[];
   viewColumns: string[];
   searchColumns: string[];
   labels: Record<string, string>;
+  enums: Record<string, Record<string, string>>;
 };
 
 let sourceCache: Map<string, Source> | null = null;
 
 export function getSources(): Map<string, Source> {
   if (!sourceCache) {
-    const rows = getDb().prepare("SELECT * FROM sources").all() as any[];
+    const rows = getDb().prepare(`SELECT * FROM ${SOURCE_TABLE}`).all() as any[];
     sourceCache = new Map(
       rows.map((r) => [
-        r.name,
+        r.source_code,
         {
-          name: r.name,
-          title: r.title,
-          kind: r.kind,
-          rows: r.rows,
-          columns: JSON.parse(r.columns),
-          viewColumns: JSON.parse(r.view_columns),
-          searchColumns: JSON.parse(r.search_columns),
-          labels: JSON.parse(r.labels ?? "{}"),
+          name: r.source_code,
+          db: r.db_name,
+          table: r.table_name,
+          title: r.title_name,
+          comment: r.table_comment_desc,
+          kind: r.source_type,
+          rows: r.row_qty,
+          columns: JSON.parse(r.column_list),
+          viewColumns: JSON.parse(r.view_column_list),
+          searchColumns: JSON.parse(r.search_column_list),
+          labels: JSON.parse(r.column_comment_map ?? "{}"),
+          enums: JSON.parse(r.column_enum_map ?? "{}"),
         },
       ]),
     );
@@ -53,20 +74,21 @@ export function getSources(): Map<string, Source> {
   return sourceCache;
 }
 
-/** 数据源白名单校验：所有表名/列名只能来自 sources 表，杜绝 SQL 注入 */
+/** 数据源白名单校验：所有表名/列名只能来自数据源目录，杜绝 SQL 注入 */
 export function requireSource(name: string | null): Source {
   const s = name ? getSources().get(name) : undefined;
   if (!s) throw new HttpError(400, `未知数据源：${name}`);
   return s;
 }
 
-export const tableOf = (s: Source) => `"ds_${s.name}"`;
+/** 库.表 */
+export const tableOf = (s: Source) => (s.kind === "sft" ? SFT_TABLE : `${s.db}.${s.table}`);
 export const q = (c: string) => `"${c.replace(/"/g, '""')}"`;
 
 const typeCache = new Map<string, Record<string, string>>();
 export function columnTypes(s: Source): Record<string, string> {
   if (!typeCache.has(s.name)) {
-    const info = getDb().prepare(`PRAGMA table_info(${tableOf(s)})`).all() as any[];
+    const info = getDb().prepare(`PRAGMA ${s.db}.table_info(${s.table})`).all() as any[];
     typeCache.set(s.name, Object.fromEntries(info.map((c) => [c.name, String(c.type)])));
   }
   return typeCache.get(s.name)!;
@@ -80,11 +102,11 @@ export function buildFilter(s: Source, sp: URLSearchParams): Filter {
   const params: (string | number)[] = [];
   const kw = (sp.get("q") ?? "").trim();
   if (s.kind === "sft") {
-    conds.push("task = ?");
+    conds.push("task_code = ?");
     params.push(s.name);
     const split = sp.get("split");
     if (split && ["train", "val", "test"].includes(split)) {
-      conds.push("split = ?");
+      conds.push("split_type = ?");
       params.push(split);
     }
   }
@@ -93,7 +115,7 @@ export function buildFilter(s: Source, sp: URLSearchParams): Filter {
     conds.push(`(${cols.map((c) => `${q(c)} LIKE ?`).join(" OR ")})`);
     cols.forEach(() => params.push(`%${kw}%`));
   }
-  if (sp.get("edited") === "1") conds.push("_edited = 1");
+  if (sp.get("edited") === "1") conds.push("is_edited = 1");
   return { where: conds.length ? `WHERE ${conds.join(" AND ")}` : "", params };
 }
 
@@ -110,5 +132,6 @@ export function jsonError(e: unknown) {
 }
 
 export function nowStr() {
-  return new Date().toISOString().replace("T", " ").slice(0, 19);
+  const d = new Date(Date.now() + 8 * 3600 * 1000); // 北京时间
+  return d.toISOString().replace("T", " ").slice(0, 19);
 }

@@ -1,13 +1,15 @@
 """一键生成 5 个明细数据集 + 日度运营辅助表。
 
 用法：python -m distill.build_datasets
-输出：output/datasets/<name>/<name>-xxxxx.csv.gz，以及 work/cache/*.parquet（供训练集构造使用）
+      python -m distill.build_datasets --export-only   # 只按命名规范重新导出交付文件
+输出：output/datasets/<库>/<表>/<表>-xxxxx.csv.gz（按客户命名规范，见 distill/naming.py），
+      以及 work/cache/*.parquet（内部字段名，供训练集构造使用）
 """
 import json
 import os
 import time
 
-from . import catalog, config, sim_channels, sim_daily_ops, sim_products, sim_profiles, sim_trips
+from . import catalog, config, naming, sim_channels, sim_daily_ops, sim_products, sim_profiles, sim_trips
 from .io_utils import write_csv_shards
 
 DATASETS = {
@@ -20,12 +22,27 @@ DATASETS = {
 }
 
 
-def _save(df, name, manifest):
-    df.to_parquet(os.path.join(config.CACHE_DIR, f"{name}.parquet"), index=False)
-    paths = write_csv_shards(df, os.path.join(config.DATASET_DIR, name), name)
-    manifest[name] = {"title": DATASETS[name], "rows": int(len(df)), "columns": list(df.columns),
+def dataset_dir(name):
+    """交付目录：output/datasets/<库>/<表>/"""
+    t = naming.TABLES[name]
+    return os.path.join(config.DATASET_DIR, t["db"], t["table"])
+
+
+def export_standard(df, name, manifest):
+    """按客户命名规范输出：字段改名、类型/状态编码、追加 travel_date 分区字段。"""
+    t = naming.TABLES[name]
+    std = naming.to_standard(df, name)
+    paths = write_csv_shards(std, dataset_dir(name), t["table"])
+    manifest[name] = {"title": DATASETS[name], "table": naming.full_name(name), "comment": t["comment"],
+                      "rows": int(len(std)), "columns": list(std.columns),
                       "files": [os.path.relpath(p, config.OUTPUT_DIR) for p in paths]}
-    print(f"[datasets] {name}: rows={len(df)} shards={len(paths)}")
+    print(f"[datasets] {naming.full_name(name)}: rows={len(std)} shards={len(paths)}")
+
+
+def _save(df, name, manifest):
+    # 内部字段名的缓存供训练集构造使用；交付文件按规范命名
+    df.to_parquet(os.path.join(config.CACHE_DIR, f"{name}.parquet"), index=False)
+    export_standard(df, name, manifest)
 
 
 def main():
@@ -50,10 +67,24 @@ def main():
     _save(traj, "visitor_trajectory", manifest)
     _save(profiles, "visitor_profile", manifest)
 
-    with open(os.path.join(config.DATASET_DIR, "manifest.json"), "w", encoding="utf-8") as f:
-        json.dump(manifest, f, ensure_ascii=False, indent=2)
+    write_manifest(manifest)
     print(f"[datasets] done in {time.time() - t0:.0f}s")
 
 
+def write_manifest(manifest):
+    with open(os.path.join(config.DATASET_DIR, "manifest.json"), "w", encoding="utf-8") as f:
+        json.dump(manifest, f, ensure_ascii=False, indent=2)
+
+
+def export_from_cache():
+    """不重新仿真，直接用缓存（内部字段）重新导出规范命名的交付文件。"""
+    import pandas as pd
+    manifest = {}
+    for name in DATASETS:
+        export_standard(pd.read_parquet(os.path.join(config.CACHE_DIR, f"{name}.parquet")), name, manifest)
+    write_manifest(manifest)
+
+
 if __name__ == "__main__":
-    main()
+    import sys
+    export_from_cache() if "--export-only" in sys.argv else main()
