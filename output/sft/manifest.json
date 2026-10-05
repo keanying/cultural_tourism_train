@@ -1,0 +1,146 @@
+{
+  "combo_recommend": {
+    "task": "combo_recommend",
+    "counts": {
+      "train": 94013,
+      "val": 3043,
+      "test": 2944
+    },
+    "total": 100000,
+    "files": {
+      "train": [
+        "sft/combo_recommend/combo_recommend_train-00000.jsonl.gz",
+        "sft/combo_recommend/combo_recommend_train-00001.jsonl.gz"
+      ],
+      "val": [
+        "sft/combo_recommend/combo_recommend_val-00000.jsonl.gz"
+      ],
+      "test": [
+        "sft/combo_recommend/combo_recommend_test-00000.jsonl.gz"
+      ],
+      "meta": [
+        "sft/combo_recommend/combo_recommend_meta-00000.jsonl.gz"
+      ]
+    },
+    "stats": {
+      "no_recommend": 4827
+    },
+    "title": "票务产品组合推荐模型",
+    "seconds": 110
+  },
+  "visitor_forecast": {
+    "task": "visitor_forecast",
+    "counts": {
+      "train": 93890,
+      "val": 3031,
+      "test": 3079
+    },
+    "total": 100000,
+    "files": {
+      "train": [
+        "sft/visitor_forecast/visitor_forecast_train-00000.jsonl.gz",
+        "sft/visitor_forecast/visitor_forecast_train-00001.jsonl.gz",
+        "sft/visitor_forecast/visitor_forecast_train-00002.jsonl.gz",
+        "sft/visitor_forecast/visitor_forecast_train-00003.jsonl.gz"
+      ],
+      "val": [
+        "sft/visitor_forecast/visitor_forecast_val-00000.jsonl.gz"
+      ],
+      "test": [
+        "sft/visitor_forecast/visitor_forecast_test-00000.jsonl.gz"
+      ],
+      "meta": [
+        "sft/visitor_forecast/visitor_forecast_meta-00000.jsonl.gz"
+      ]
+    },
+    "stats": {
+      "teacher_mape_vs_actual": 0.0814
+    },
+    "title": "游客人数预测模型",
+    "seconds": 71
+  },
+  "dynamic_pricing": {
+    "task": "dynamic_pricing",
+    "counts": {
+      "train": 94048,
+      "val": 2961,
+      "test": 2991
+    },
+    "total": 100000,
+    "files": {
+      "train": [
+        "sft/dynamic_pricing/dynamic_pricing_train-00000.jsonl.gz",
+        "sft/dynamic_pricing/dynamic_pricing_train-00001.jsonl.gz"
+      ],
+      "val": [
+        "sft/dynamic_pricing/dynamic_pricing_val-00000.jsonl.gz"
+      ],
+      "test": [
+        "sft/dynamic_pricing/dynamic_pricing_test-00000.jsonl.gz"
+      ],
+      "meta": [
+        "sft/dynamic_pricing/dynamic_pricing_meta-00000.jsonl.gz"
+      ]
+    },
+    "stats": {
+      "sampling_tries": 552440
+    },
+    "title": "票务产品动态定价模型",
+    "seconds": 33
+  },
+  "channel_placement": {
+    "task": "channel_placement",
+    "counts": {
+      "train": 94024,
+      "val": 2947,
+      "test": 3029
+    },
+    "total": 100000,
+    "files": {
+      "train": [
+        "sft/channel_placement/channel_placement_train-00000.jsonl.gz",
+        "sft/channel_placement/channel_placement_train-00001.jsonl.gz",
+        "sft/channel_placement/channel_placement_train-00002.jsonl.gz"
+      ],
+      "val": [
+        "sft/channel_placement/channel_placement_val-00000.jsonl.gz"
+      ],
+      "test": [
+        "sft/channel_placement/channel_placement_test-00000.jsonl.gz"
+      ],
+      "meta": [
+        "sft/channel_placement/channel_placement_meta-00000.jsonl.gz"
+      ]
+    },
+    "title": "产品渠道投放模型",
+    "seconds": 1983
+  },
+  "business_insight": {
+    "task": "business_insight",
+    "counts": {
+      "train": 93911,
+      "val": 3072,
+      "test": 3017
+    },
+    "total": 100000,
+    "files": {
+      "train": [
+        "sft/business_insight/business_insight_train-00000.jsonl.gz",
+        "sft/business_insight/business_insight_train-00001.jsonl.gz",
+        "sft/business_insight/business_insight_train-00002.jsonl.gz",
+        "sft/business_insight/business_insight_train-00003.jsonl.gz"
+      ],
+      "val": [
+        "sft/business_insight/business_insight_val-00000.jsonl.gz"
+      ],
+      "test": [
+        "sft/business_insight/business_insight_test-00000.jsonl.gz"
+      ],
+      "meta": [
+        "sft/business_insight/business_insight_meta-00000.jsonl.gz"
+      ]
+    },
+    "title": "经营洞察模型",
+    "seconds": 86
+  }
+}

@@ -1,0 +1,6 @@
+work/
+__pycache__/
+*.pyc
+.env
+llm_cache/
+dist/

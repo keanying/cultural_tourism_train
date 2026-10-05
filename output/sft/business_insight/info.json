@@ -1,0 +1,28 @@
+{
+  "task": "business_insight",
+  "counts": {
+    "train": 93911,
+    "val": 3072,
+    "test": 3017
+  },
+  "total": 100000,
+  "files": {
+    "train": [
+      "sft/business_insight/business_insight_train-00000.jsonl.gz",
+      "sft/business_insight/business_insight_train-00001.jsonl.gz",
+      "sft/business_insight/business_insight_train-00002.jsonl.gz",
+      "sft/business_insight/business_insight_train-00003.jsonl.gz"
+    ],
+    "val": [
+      "sft/business_insight/business_insight_val-00000.jsonl.gz"
+    ],
+    "test": [
+      "sft/business_insight/business_insight_test-00000.jsonl.gz"
+    ],
+    "meta": [
+      "sft/business_insight/business_insight_meta-00000.jsonl.gz"
+    ]
+  },
+  "title": "经营洞察模型",
+  "seconds": 86
+}

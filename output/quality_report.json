@@ -1,0 +1,197 @@
+{
+  "passed": true,
+  "checks": [
+    {
+      "check": "scenic_product_detail 行数=200000",
+      "passed": true,
+      "detail": "实际 200000"
+    },
+    {
+      "check": "visitor_profile 行数=200000",
+      "passed": true,
+      "detail": "实际 200000"
+    },
+    {
+      "check": "visitor_consumption 行数=200000",
+      "passed": true,
+      "detail": "实际 200000"
+    },
+    {
+      "check": "visitor_trajectory 行数=200000",
+      "passed": true,
+      "detail": "实际 200000"
+    },
+    {
+      "check": "channel_distribution 行数=200000",
+      "passed": true,
+      "detail": "实际 200000"
+    },
+    {
+      "check": "产品ID唯一",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "游客ID唯一",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "订单ID唯一",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "轨迹ID唯一",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "订单→游客 外键完整",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "订单→产品 外键完整",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "轨迹→游客 外键完整",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "轨迹→订单 外键完整",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "有轨迹的订单均为已核销",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "渠道→产品 外键完整",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "产品 保底价≤标价≤最高限价",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "订单 实付=原价-优惠",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "退款订单消费额为0",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "日客流≤日最大承载量",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "线上+线下=日客流",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "渠道月售票合计=日度客流月合计",
+      "passed": true,
+      "detail": "对齐 6576 个景区-月"
+    },
+    {
+      "check": "画像消费汇总=订单汇总",
+      "passed": true,
+      "detail": "最大偏差 0.0"
+    },
+    {
+      "check": "combo_recommend 格式合规（messages/thought/answer/JSON）",
+      "passed": true,
+      "detail": "0/100000 不合规"
+    },
+    {
+      "check": "combo_recommend 业务约束与数字闭合",
+      "passed": true,
+      "detail": "0/100000 不通过 []"
+    },
+    {
+      "check": "visitor_forecast 格式合规（messages/thought/answer/JSON）",
+      "passed": true,
+      "detail": "0/100000 不合规"
+    },
+    {
+      "check": "visitor_forecast 业务约束与数字闭合",
+      "passed": true,
+      "detail": "0/100000 不通过 []"
+    },
+    {
+      "check": "dynamic_pricing 格式合规（messages/thought/answer/JSON）",
+      "passed": true,
+      "detail": "0/100000 不合规"
+    },
+    {
+      "check": "dynamic_pricing 业务约束与数字闭合",
+      "passed": true,
+      "detail": "0/100000 不通过 []"
+    },
+    {
+      "check": "channel_placement 格式合规（messages/thought/answer/JSON）",
+      "passed": true,
+      "detail": "0/100000 不合规"
+    },
+    {
+      "check": "channel_placement 业务约束与数字闭合",
+      "passed": true,
+      "detail": "0/100000 不通过 []"
+    },
+    {
+      "check": "business_insight 格式合规（messages/thought/answer/JSON）",
+      "passed": true,
+      "detail": "0/100000 不合规"
+    },
+    {
+      "check": "business_insight 业务约束与数字闭合",
+      "passed": true,
+      "detail": "0/100000 不通过 []"
+    }
+  ],
+  "sft_length_stats": {
+    "combo_recommend": {
+      "samples": 100000,
+      "chars_p50": 1891,
+      "chars_p95": 2291,
+      "chars_max": 2821
+    },
+    "visitor_forecast": {
+      "samples": 100000,
+      "chars_p50": 5444,
+      "chars_p95": 5589,
+      "chars_max": 6042
+    },
+    "dynamic_pricing": {
+      "samples": 100000,
+      "chars_p50": 2184,
+      "chars_p95": 2224,
+      "chars_max": 2300
+    },
+    "channel_placement": {
+      "samples": 100000,
+      "chars_p50": 4287,
+      "chars_p95": 4787,
+      "chars_max": 5178
+    },
+    "business_insight": {
+      "samples": 100000,
+      "chars_p50": 4492,
+      "chars_p95": 4665,
+      "chars_max": 4839
+    }
+  }
+}
