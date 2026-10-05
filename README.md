@@ -52,6 +52,15 @@ LLaMA-Factory `dataset_info.json` 示例：
 }
 ```
 
+### 数据管理页面（查看 / 在线修改 / 一键导出 JSONL）
+
+```bash
+python -m distill.build_db                     # 导入 SQLite（web/data/ct.db）
+cd web && npm install && npm run build && npm start   # http://localhost:3000
+```
+
+在页面中可以浏览全部 11 个数据源，在线修改训练样本和明细数据（保存前做格式与业务约束校验，并保留修改记录），一键导出当前筛选结果的 JSONL。详见 `web/README.md`。
+
 ## 三、方法论：为什么这样“蒸馏”
 
 客户只有 OTA 商品数据，没有订单、画像、客流、渠道等交易数据，而训练集要求上百万条且**数字必须自洽**。
@@ -102,6 +111,8 @@ distill/
   llm_refine.py       OpenAI/DeepSeek 润色 + 事实锁
   validate.py         质量校验       evaluate.py  离线评测
   build_datasets.py / build_sft.py   一键入口
+  build_db.py         导入 SQLite，供数据管理页面使用
+web/                  数据管理页面（Next.js + HeroUI v3）
 docs/                 数据字典、训练集格式规范
 output/               交付数据（gzip 分片）
 ```
