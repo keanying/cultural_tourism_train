@@ -2,10 +2,12 @@ import "server-only";
 import fs from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { ensurePlatformSchema } from "./schema";
 
 // 按客户命名规范分库：每个分层一个 SQLite 文件，ATTACH 后统一以“库.表”访问
 const DATA_DIR = process.env.CT_DATA_DIR ?? path.join(/*turbopackIgnore: true*/ process.cwd(), "data");
 const SCHEMAS = ["ads", "dim", "dwd", "dws"] as const;
+const OPTIONAL_SCHEMAS = ["ods"] as const; // ODS 原始数据层（存在则挂载）
 
 /** 训练样本、修改记录、数据源目录（ads 应用层） */
 export const SFT_TABLE = "ads.ads_llm_sft_sample_f";
@@ -21,11 +23,13 @@ export function getDb(): DatabaseSync {
       throw new Error(`数据库文件缺失：${missing.map((s) => `${s}.db`).join("、")}（目录 ${DATA_DIR}）。请先在项目根目录运行 python -m distill.build_db`);
     }
     const d = new DatabaseSync(":memory:");
-    for (const s of SCHEMAS) {
+    const present = [...SCHEMAS, ...OPTIONAL_SCHEMAS.filter((s) => fs.existsSync(/*turbopackIgnore: true*/ path.join(DATA_DIR, `${s}.db`)))];
+    for (const s of present) {
       d.exec(`ATTACH DATABASE '${path.join(DATA_DIR, `${s}.db`).replace(/'/g, "''")}' AS ${s}`);
       d.exec(`PRAGMA ${s}.journal_mode=WAL;`);
     }
     d.exec("PRAGMA busy_timeout=5000;");
+    ensurePlatformSchema(d, nowStr());
     db = d;
   }
   return db;

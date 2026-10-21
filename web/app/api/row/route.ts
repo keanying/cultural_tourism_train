@@ -1,3 +1,4 @@
+import { requireArea } from "@/lib/auth";
 import { columnTypes, getDb, HttpError, jsonError, LOG_TABLE, nowStr, q, requireSource, SFT_TABLE, tableOf } from "@/lib/db";
 import { pyDumps, validateSft } from "@/lib/sft";
 
@@ -7,6 +8,7 @@ export const dynamic = "force-dynamic";
 /** 单行详情：GET /api/row?source=&id= */
 export async function GET(req: Request) {
   try {
+    requireArea(req, "data"); // 原数据管理：仅需求员与超级管理员
     const sp = new URL(req.url).searchParams;
     const s = requireSource(sp.get("source"));
     const id = Number(sp.get("id"));
@@ -63,6 +65,7 @@ function coerce(field: string, type: string, v: unknown, enums?: Record<string, 
 /** 保存修改：PATCH /api/row  body={source,id,values} 或 {source,id,user,assistant} */
 export async function PATCH(req: Request) {
   try {
+    requireArea(req, "data"); // 原数据管理：仅需求员与超级管理员
     const body = await req.json();
     const s = requireSource(body.source);
     const id = Number(body.id);

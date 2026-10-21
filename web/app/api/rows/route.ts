@@ -1,3 +1,4 @@
+import { requireArea } from "@/lib/auth";
 import { buildFilter, getDb, jsonError, q, requireSource, tableOf } from "@/lib/db";
 import { answerPreview } from "@/lib/sft";
 
@@ -7,6 +8,7 @@ export const dynamic = "force-dynamic";
 /** 分页列表：GET /api/rows?source=&page=&pageSize=&q=&split=&edited= */
 export async function GET(req: Request) {
   try {
+    requireArea(req, "data"); // 原数据管理：仅需求员与超级管理员
     const sp = new URL(req.url).searchParams;
     const s = requireSource(sp.get("source"));
     const page = Math.max(1, Number(sp.get("page") ?? 1) || 1);

@@ -68,14 +68,25 @@ LLaMA-Factory `dataset_info.json` 示例：
 }
 ```
 
-### 数据管理页面（查看 / 在线修改 / 一键导出 JSONL）
+### 标注审核平台（登录 / 需求 / 标注 / 审核 / 交付 / 数据管理）
 
 ```bash
-python -m distill.build_db                     # 按分层导入 SQLite（web/data/{dim,dwd,dws,ads}.db）
+python -m distill.build_db                     # 全部数据落库：web/data/{ods,dim,dwd,dws,ads}.db
 cd web && npm install && npm run build && npm start   # http://localhost:3000
 ```
 
-在页面中可以浏览全部 11 个数据源，在线修改训练样本和明细数据（保存前做格式与业务约束校验，并保留修改记录），一键导出当前筛选结果的 JSONL。详见 `web/README.md`。
+默认账号 superadmin / admin / requester / annotator1 / annotator2 / reviewer，初始密码均为 `Ct@123456`，上线前请修改。
+
+| 角色 | 主要操作 |
+|---|---|
+| 需求员 | 创建项目，指定数据（可多选），发布标注需求与标注标准；确认交付并下载 |
+| 管理员 | 接收或驳回需求，按 5000 条/块切块下发；全部分块审核通过后交付 |
+| 标注员 | 认领分块（不能被二次认领，可退回），逐条标注，可用 AI 再标；提交审核 |
+| 审核员 | 领取分块并自动抽检，判定合格、修改或剔除；可对分块或单条数据发表意见；通过或退回返修 |
+| 超级管理员 | 全部功能，以及用户管理 |
+
+原有的数据管理功能（浏览 11 个数据源、在线修改、导出 JSONL）只对需求员和超级管理员可见。
+作业台中的数据都用 JSON 可视化编辑器渲染和编辑，嵌套的 JSON 字符串会自动展开。详见 `web/README.md`。
 
 ## 三、方法论：为什么这样“蒸馏”
 
@@ -128,9 +139,9 @@ distill/
   llm_refine.py       OpenAI/DeepSeek 润色 + 事实锁
   validate.py         质量校验       evaluate.py  离线评测
   build_datasets.py / build_sft.py   一键入口
-  build_db.py         按 dim/dwd/dws/ads 分库导入 SQLite，供数据管理页面使用
+  build_db.py         全部数据按 ods/dim/dwd/dws/ads 分库导入 SQLite（标注平台表保留不覆盖）
   dictionary.py       生成数据字典与 DDL
-web/                  数据管理页面（Next.js + HeroUI v3）
+web/                  标注审核平台与数据管理（Next.js + HeroUI v3），见 web/README.md
 docs/                 数据字典、DDL（docs/ddl/）、训练集格式规范
 output/               交付数据（gzip 分片）
 ```

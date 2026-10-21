@@ -10,7 +10,7 @@ import os
 
 from . import config, naming
 
-LAYER = {"dim": "DIM 维度层", "dwd": "DWD 明细层", "dws": "DWS 汇总层", "ads": "ADS 应用层"}
+LAYER = {"ods": "ODS 原始数据层", "dim": "DIM 维度层", "dwd": "DWD 明细层", "dws": "DWS 汇总层", "ads": "ADS 应用层"}
 
 
 def main():

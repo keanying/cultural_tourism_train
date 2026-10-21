@@ -136,6 +136,24 @@ SEG_RATE = [F(f"segment_{en}_rate", "DOUBLE", f"{zh}客群占比（0-1）", f"se
 
 # ---------------------------------------------------------------- 表定义
 TABLES = {
+    "raw_ticket": {
+        "db": "ods", "table": "ods_prd_ctrip_attraction_ticket_df",
+        "title": "携程景区票务原始数据",
+        "comment": "携程全国景区票务与服务商品原始数据（天级全量快照，客户提供，未清洗）",
+        "partition": ("快照日期（商品采集日）", _const("20260905")),
+        "fields": [
+            F("attraction_id", "STRING", "景区ID（携程景区POI编号）", "poi_id"),
+            F("attraction_name", "STRING", "景区名称", "poi_name"),
+            F("ticket_type", "BIGINT", "票类型编码", "ticket_type", "ticket_type"),
+            F("ticket_type_name", "STRING", "票类型名称"),
+            F("ota_ticket_no", "STRING", "OTA（携程）商品/资源编号", "ticket_id"),
+            F("prd_name", "STRING", "商品名称", "ticket_name"),
+            F("ticket_price_desc", "STRING", "门票价格原始值（元，空=未公开/需选项后显示）", "ticket_price"),
+            F("sales_raw_desc", "STRING", "销量原始展示文本", "ticket_sales_volume"),
+            F("cost_inclusion_desc", "STRING", "费用包含（原文）", "cost_inclusion"),
+            F("purchase_notes_desc", "STRING", "购买须知（原文）", "purchase_notes"),
+        ],
+    },
     "scenic_product_detail": {
         "db": "dim", "table": "dim_prd_attraction_ticket_df",
         "title": "景区产品详情数据集",
@@ -378,6 +396,8 @@ TABLES = {
 # 字段来源标记（数据字典“来源”列）：真实=携程采集原值 解析=由真实文本规则解析 推断=由真实数据推断
 # 派生=基于真实值按业务规则计算 仿真=按业务逻辑统计仿真生成
 ORIGIN = {
+    "raw_ticket": {c: "真实" for c in ["poi_id", "poi_name", "ticket_type", "ticket_type_name", "ticket_id", "ticket_name",
+                                         "ticket_price", "ticket_sales_volume", "cost_inclusion", "purchase_notes"]},
     'scenic_product_detail': {"product_id": "派生", "source_ticket_id": "真实", "poi_id": "真实", "poi_name": "真实", "province": "推断", "city": "推断", "scenic_category": "推断", "scenic_grade_inferred": "推断", "ticket_type": "真实", "ticket_type_name": "真实", "product_name": "真实", "list_price": "真实", "sales_volume": "解析", "sales_volume_raw": "真实", "is_base_ticket": "解析", "feature_tags": "解析", "target_segments": "派生", "applicable_crowd": "解析", "duration_hours": "解析", "booking_advance": "解析", "refund_policy": "解析", "entry_method": "解析", "ticket_issue_speed": "解析", "need_id_card": "解析", "cost_price": "派生", "floor_price": "派生", "ceiling_price": "派生", "premium_coef": "派生", "discount_coef": "派生", "daily_inventory": "派生", "cost_inclusion": "真实", "purchase_notes": "真实", "data_source": "派生"},
     'visitor_profile': {"visitor_id": "仿真", "gender": "仿真", "age": "仿真", "age_band": "仿真", "source_province": "仿真", "source_city": "仿真", "city_tier": "仿真", "travel_type": "仿真", "party_structure": "仿真", "adults": "仿真", "children": "仿真", "seniors": "仿真", "child_age": "仿真", "income_level": "仿真", "price_sensitivity": "仿真", "member_level": "仿真", "preferred_channel": "仿真", "secondary_channel": "仿真", "booking_lead_pref": "仿真", "annual_trip_freq": "仿真", "preferred_categories": "仿真", "interest_tags": "仿真", "device_type": "仿真", "register_date": "仿真", "total_orders": "仿真", "total_spend": "仿真", "last_visit_date": "仿真", "favorite_province": "仿真", "avg_order_amount": "仿真", "refund_orders": "仿真", "value_tier": "仿真"},
     'visitor_consumption': {"order_id": "仿真", "visitor_id": "仿真", "trip_id": "仿真", "poi_id": "真实", "poi_name": "真实", "poi_province": "推断", "poi_city": "推断", "scenic_category": "推断", "product_id": "派生", "product_name": "真实", "ticket_type_name": "真实", "channel": "仿真", "order_time": "仿真", "visit_date": "仿真", "lead_days": "仿真", "adult_qty": "仿真", "child_qty": "仿真", "senior_qty": "仿真", "quantity": "仿真", "unit_price": "仿真", "original_amount": "仿真", "coupon_amount": "仿真", "paid_amount": "仿真", "payment_method": "仿真", "order_status": "仿真", "refund_reason": "仿真", "refund_amount": "仿真", "addon_product_id": "仿真", "addon_amount": "仿真", "secondary_spend": "仿真", "secondary_detail": "仿真", "total_spend": "仿真", "rating": "仿真", "visit_weather": "仿真", "visit_day_type": "仿真", "holiday_name": "真实", "travel_type": "仿真", "member_level": "仿真"},

@@ -3,10 +3,12 @@
 按客户命名规范分库：每个分层一个 SQLite 文件，页面通过 ATTACH 以“库.表”方式访问，
 如 SELECT * FROM dwd.dwd_ord_attraction_ticket_order_di。
 
+  web/data/ods.db  ods.ods_prd_ctrip_attraction_ticket_df（携程原始票务数据）
   web/data/dim.db  dim.dim_prd_attraction_ticket_df
   web/data/dwd.db  dwd.dwd_ord_attraction_ticket_order_di、dwd.dwd_cus_traveler_trajectory_di
   web/data/dws.db  dws.dws_cus_traveler_profile_df、dws.dws_trf_attraction_channel_sales_mo、dws.dws_opr_attraction_operation_di
   web/data/ads.db  ads.ads_llm_sft_sample_f（训练样本）、ads.ads_llm_data_edit_log_f（修改记录）、ads.ads_llm_data_source_f（数据源目录）
+                   标注平台系统表（用户、会话、项目、需求、分块、标注条目、审核意见、交付记录）由页面启动时自动创建
 
 业务表在规范字段之外追加两个管理字段：row_id（行号主键）、is_edited（是否被页面修改：0-否 1-是）。
 
@@ -25,6 +27,8 @@ from .io_utils import iter_jsonl_shards, read_csv_shards
 
 # 页面表格默认展示列与关键词搜索列（规范字段名）
 DS_VIEW = {
+    "raw_ticket": (["attraction_id", "attraction_name", "ticket_type_name", "ota_ticket_no", "prd_name", "ticket_price_desc", "sales_raw_desc"],
+                   ["attraction_name", "prd_name", "ota_ticket_no"]),
     "channel_distribution": (["stat_month", "attraction_name", "prd_name", "sales_channel_name", "channel_price_amt", "ticket_sold_qty", "gmv_amt", "marketing_spend_amt", "roas_rate", "main_segment_type"],
                              ["attraction_name", "prd_name", "sales_channel_name", "stat_month"]),
     "scenic_product_detail": (["prd_id", "attraction_name", "attraction_city_name", "attraction_category_name", "ticket_type_name", "prd_name", "list_price_amt", "sales_qty", "refund_policy_type", "target_segment_tags"],
@@ -89,25 +93,37 @@ def _ddl(name):
     return f"CREATE TABLE {naming.full_name(name)} (  -- {t['comment']}\n" + "\n".join(lines) + "\n)"
 
 
-def build(out_dir: str):
+def build(out_dir: str, force: bool = False):
     os.makedirs(out_dir, exist_ok=True)
     dbs = sorted({t["db"] for t in naming.TABLES.values()} | {"ads"})
-    tmp = {db: os.path.join(out_dir, f"{db}.db.tmp") for db in dbs}
+    # ods/dim/dwd/dws 整库重建（先写临时文件再替换）；ads 库原地更新，只重建数据表，保留标注平台的用户、项目、标注成果
+    tmp = {db: os.path.join(out_dir, f"{db}.db.tmp") for db in dbs if db != "ads"}
     for p in tmp.values():
         if os.path.exists(p):
             os.remove(p)
+    ads_path = os.path.join(out_dir, "ads.db")
     con = sqlite3.connect(":memory:")
-    for db, p in tmp.items():
+    for db, p in [*tmp.items(), ("ads", ads_path)]:
         con.execute(f"ATTACH DATABASE ? AS {db}", (p,))
-        con.execute(f"PRAGMA {db}.journal_mode=OFF")
+        if db != "ads":
+            con.execute(f"PRAGMA {db}.journal_mode=OFF")
         con.execute(f"PRAGMA {db}.synchronous=OFF")
+    has_lbl = con.execute("SELECT COUNT(*) FROM ads.sqlite_master WHERE name = 'ads_llm_lbl_item_f'").fetchone()[0]
+    if has_lbl and con.execute("SELECT COUNT(*) FROM ads.ads_llm_lbl_item_f").fetchone()[0] and not force:
+        raise SystemExit("ads 库中已有标注数据：重建数据会使标注条目引用的行号失效。确认要重建请加 --force。")
+    for t in ("ads_llm_sft_sample_f", "ads_llm_data_edit_log_f", "ads_llm_data_source_f"):
+        con.execute(f"DROP TABLE IF EXISTS ads.{t}")
     con.execute(SRC_DDL)
     src_sql = "INSERT INTO ads.ads_llm_data_source_f VALUES (?,?,?,?,?,?,?,?,?,?,?,?)"
 
-    for name in DATASETS:
+    for name in ["raw_ticket", *DATASETS]:
         t0 = time.time()
         t = naming.TABLES[name]
-        df = read_csv_shards(dataset_dir(name), t["table"])
+        if name == "raw_ticket":  # ODS：客户提供的携程原始票务数据，原样落库
+            from .catalog import load_raw
+            df = naming.to_standard(load_raw(), name)
+        else:
+            df = read_csv_shards(dataset_dir(name), t["table"])
         cols = [f["name"] for f in t["fields"]] + [naming.PARTITION]
         assert list(df.columns) == cols, f"{name} 字段与规范不一致"
         con.execute(_ddl(name))
@@ -154,6 +170,9 @@ def build(out_dir: str):
                                           "assistant_content": "回答"}, ensure_ascii=False), "{}"))
         con.commit()
         print(f"[db] ads.ads_llm_sft_sample_f/{task}: {n} rows {time.time() - t0:.0f}s")
+    con.execute("DROP INDEX IF EXISTS ads.idx_sft_task")
+    con.execute("DROP INDEX IF EXISTS ads.idx_sft_sample")
+    con.execute("DROP INDEX IF EXISTS ads.idx_log_row")
     con.execute("CREATE INDEX ads.idx_sft_task ON ads_llm_sft_sample_f(task_code, split_type, split_seq_no)")
     con.execute("CREATE INDEX ads.idx_sft_sample ON ads_llm_sft_sample_f(sample_no)")
     con.execute(LOG_DDL)
@@ -161,15 +180,20 @@ def build(out_dir: str):
     con.commit()
     con.close()
     for db, p in tmp.items():
-        os.replace(p, os.path.join(out_dir, f"{db}.db"))
+        dst = os.path.join(out_dir, f"{db}.db")
+        for suffix in ("-wal", "-shm"):  # 旧库残留的 WAL/SHM 文件必须一并删除
+            if os.path.exists(dst + suffix):
+                os.remove(dst + suffix)
+        os.replace(p, dst)
     print(f"[db] done -> {out_dir}/{{{','.join(dbs)}}}.db")
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default=os.path.join(config.ROOT, "web", "data"))
+    ap.add_argument("--force", action="store_true", help="已有标注数据时仍然重建")
     a = ap.parse_args()
-    build(a.out)
+    build(a.out, a.force)
 
 
 if __name__ == "__main__":
