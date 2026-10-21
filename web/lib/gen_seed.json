@@ -1,0 +1,1154 @@
+{
+  "specs": [
+    {
+      "code": "kefu_detail",
+      "name": "智能客服会话明细",
+      "kind": "detail",
+      "task_type": "detail_gen",
+      "source_code": "",
+      "tags": {
+        "业务": "景区服务",
+        "任务": "客服对话",
+        "类型": "明细",
+        "领域": "旅游"
+      },
+      "config": {
+        "unit_label": "会话",
+        "dimensions": [
+          {
+            "var": "category",
+            "label": "覆盖类目",
+            "mode": "rotate",
+            "dict": "categories",
+            "value_field": "category",
+            "filterable": true,
+            "child": {
+              "var": "sub_scene",
+              "field": "sub_scenes",
+              "take": 1
+            }
+          },
+          {
+            "var": "shape",
+            "label": "会话形态",
+            "mode": "weighted",
+            "dict": "dialog_shapes",
+            "value_field": "name",
+            "weight_field": "weight",
+            "filterable": true,
+            "extra": {
+              "shape_desc": "desc",
+              "turn_hint": "turns"
+            }
+          }
+        ],
+        "variables": {
+          "scenic_profile": "综合型 5A 景区：含大门票与套票、观光车与索道、机动游乐区、景区酒店、文创店、演艺剧场，日均客流 2~4 万人次，暑期为旺季"
+        },
+        "required": [
+          "turns"
+        ],
+        "dedup_field": "turns.0.question",
+        "avoid_field": "turns.0.question",
+        "conv_fields": [
+          {
+            "key": "category",
+            "label": "类目",
+            "list": true
+          },
+          {
+            "key": "sub_scene",
+            "label": "细分场景",
+            "list": true
+          },
+          {
+            "key": "shape",
+            "label": "会话形态",
+            "list": true
+          },
+          {
+            "key": "scene_desc",
+            "label": "会话背景"
+          },
+          {
+            "key": "visitor_tag",
+            "label": "游客标签"
+          },
+          {
+            "key": "difficulty",
+            "label": "难度"
+          }
+        ],
+        "turn_fields": [
+          {
+            "key": "question",
+            "label": "游客提问"
+          },
+          {
+            "key": "reply",
+            "label": "客服应答"
+          },
+          {
+            "key": "intent_1",
+            "path": "thought.意图1.名称",
+            "label": "意图1"
+          },
+          {
+            "key": "slots_1",
+            "path": "thought.意图1.槽位",
+            "label": "意图1槽位",
+            "fmt": "json"
+          },
+          {
+            "key": "intent_2",
+            "path": "thought.意图2.名称",
+            "label": "意图2"
+          },
+          {
+            "key": "slots_2",
+            "path": "thought.意图2.槽位",
+            "label": "意图2槽位",
+            "fmt": "json"
+          },
+          {
+            "key": "emotion",
+            "label": "情绪"
+          }
+        ],
+        "turn_view": [
+          {
+            "key": "question",
+            "label": "游客提问",
+            "role": "user",
+            "editable": true
+          },
+          {
+            "key": "reply",
+            "label": "客服应答",
+            "role": "assistant",
+            "editable": true
+          }
+        ]
+      },
+      "remark": "一条 = 一段完整会话（1~5 轮），覆盖票务/交通/酒店/文创/客诉等类目",
+      "sort": 10
+    },
+    {
+      "code": "kefu_sft",
+      "name": "智能客服对话训练集",
+      "kind": "sft",
+      "task_type": "ai_label",
+      "source_code": "kefu_detail",
+      "tags": {
+        "业务": "景区服务",
+        "任务": "客服对话",
+        "类型": "SFT",
+        "领域": "旅游"
+      },
+      "config": {
+        "unit_label": "会话",
+        "expand": {
+          "field": "turns",
+          "history_template": "用户：{{question}}\n客服：{{reply}}",
+          "history_var": "history",
+          "index_var": "turn_index",
+          "total_var": "turn_total"
+        },
+        "sample_id_template": "scenic_slot_{{conv_id}}_t{{turn_index}}",
+        "messages": [
+          {
+            "role": "system",
+            "content": "你是一个专业的景区智能客服。请根据历史对话识别用户当前意图，提取相关槽位，并给出回复。必须在<thought>标签内完成意图分类和历史切片。多意图需分别处理。"
+          },
+          {
+            "role": "user",
+            "content": "{{#history}}历史对话：\n{{history}}\n{{/history}}当前问题：{{question}}"
+          },
+          {
+            "role": "assistant",
+            "content": "<thought>{{thought|json}}</thought>{{reply}}"
+          }
+        ],
+        "validators": [
+          {
+            "type": "json_key",
+            "field": "thought",
+            "key": "意图1",
+            "label": "思维链"
+          },
+          {
+            "type": "nonempty",
+            "field": "reply",
+            "label": "回复正文"
+          }
+        ],
+        "ai_fields": [
+          {
+            "key": "thought",
+            "label": "意图与槽位（thought）",
+            "type": "intents"
+          },
+          {
+            "key": "reply",
+            "label": "客服回复",
+            "type": "textarea"
+          }
+        ]
+      },
+      "remark": "会话按轮次滑窗展开，history 自动拼接前序轮次",
+      "sort": 20
+    },
+    {
+      "code": "eval_detail",
+      "name": "讲解评价明细",
+      "kind": "detail",
+      "task_type": "detail_gen",
+      "source_code": "",
+      "tags": {
+        "业务": "景区服务",
+        "任务": "讲解评价",
+        "类型": "明细",
+        "领域": "旅游"
+      },
+      "config": {
+        "unit_label": "条",
+        "dimensions": [
+          {
+            "var": "scenic",
+            "label": "覆盖景区",
+            "mode": "rotate",
+            "dict": "scenics",
+            "value_field": "scenic",
+            "filterable": true,
+            "extra": {
+              "scenic_type": "type"
+            },
+            "child": {
+              "var": "sub_spots",
+              "field": "sub_spots",
+              "take": 3,
+              "join": "、"
+            }
+          },
+          {
+            "var": "topic",
+            "label": "讲解类型",
+            "mode": "rotate",
+            "dict": "guide_topics",
+            "filterable": true
+          },
+          {
+            "var": "error_mode",
+            "label": "错误注入模式",
+            "mode": "weighted",
+            "dict": "eval_modes",
+            "value_field": "mode",
+            "weight_field": "weight",
+            "filterable": true,
+            "extra": {
+              "error_mode_desc": "desc"
+            }
+          }
+        ],
+        "variables": {
+          "word_min": 300,
+          "word_max": 460
+        },
+        "required": [
+          "turns"
+        ],
+        "dedup_field": "turns.0.guide_text",
+        "avoid_field": "sub_spot",
+        "conv_fields": [
+          {
+            "key": "scenic_name",
+            "label": "景区",
+            "list": true
+          },
+          {
+            "key": "sub_spot",
+            "label": "子景点",
+            "list": true
+          },
+          {
+            "key": "topic",
+            "label": "讲解类型",
+            "list": true
+          },
+          {
+            "key": "error_mode",
+            "label": "错误模式",
+            "list": true
+          }
+        ],
+        "turn_fields": [
+          {
+            "key": "kb_text",
+            "label": "官方知识库"
+          },
+          {
+            "key": "guide_text",
+            "label": "待评价讲解内容"
+          },
+          {
+            "key": "kb_facts",
+            "label": "知识库要点",
+            "fmt": "join"
+          }
+        ],
+        "turn_view": [
+          {
+            "key": "kb_text",
+            "label": "官方知识库",
+            "editable": true
+          },
+          {
+            "key": "guide_text",
+            "label": "待评价讲解内容",
+            "editable": true
+          }
+        ]
+      },
+      "remark": "官方知识库片段 + 待评价讲解内容的配对，按错误模式注入问题",
+      "sort": 30
+    },
+    {
+      "code": "eval_sft",
+      "name": "讲解内容评价训练集",
+      "kind": "sft",
+      "task_type": "ai_label",
+      "source_code": "eval_detail",
+      "tags": {
+        "业务": "景区服务",
+        "任务": "讲解评价",
+        "类型": "SFT",
+        "领域": "旅游"
+      },
+      "config": {
+        "unit_label": "条",
+        "expand": {
+          "field": "turns",
+          "index_var": "turn_index",
+          "total_var": "turn_total"
+        },
+        "sample_id_template": "guide_eval_{{conv_id}}",
+        "messages": [
+          {
+            "role": "system",
+            "content": "你是一个专业的景区讲解内容评价模型。请基于官方知识库对讲解内容进行事实准确性、逻辑连贯性、服务合规性三维评价。必须在<thought>标签内完成评价维度判断、槽位提取、逻辑推导，最终输出综合评分与评语。缺乏依据时主动拒答，提问前提错误时主动纠偏。"
+          },
+          {
+            "role": "user",
+            "content": "官方知识库：{{kb_text}}\n讲解内容：{{guide_text}}"
+          },
+          {
+            "role": "assistant",
+            "content": "<thought>{{thought|json}}</thought>综合评分：{{score}}\n评语：{{comment}}"
+          }
+        ],
+        "validators": [
+          {
+            "type": "json_key",
+            "field": "thought",
+            "key": "槽位",
+            "label": "思维链"
+          },
+          {
+            "type": "int_range",
+            "field": "score",
+            "min": 1,
+            "max": 5,
+            "label": "综合评分"
+          },
+          {
+            "type": "nonempty",
+            "field": "comment",
+            "label": "评语"
+          }
+        ],
+        "ai_fields": [
+          {
+            "key": "thought",
+            "label": "评价推导（thought）",
+            "type": "json"
+          },
+          {
+            "key": "score",
+            "label": "综合评分（1-5）",
+            "type": "number"
+          },
+          {
+            "key": "comment",
+            "label": "评语",
+            "type": "textarea"
+          }
+        ]
+      },
+      "remark": "三维评价 + 拒答纠偏，输出综合评分与评语",
+      "sort": 40
+    },
+    {
+      "code": "narr_detail",
+      "name": "个性化讲解明细",
+      "kind": "detail",
+      "task_type": "detail_gen",
+      "source_code": "",
+      "tags": {
+        "业务": "景区服务",
+        "任务": "个性化讲解",
+        "类型": "明细",
+        "领域": "旅游"
+      },
+      "config": {
+        "unit_label": "条",
+        "dimensions": [
+          {
+            "var": "scenic",
+            "label": "覆盖景区",
+            "mode": "rotate",
+            "dict": "scenics",
+            "value_field": "scenic",
+            "filterable": true,
+            "extra": {
+              "scenic_type": "type"
+            },
+            "child": {
+              "var": "sub_spots",
+              "field": "sub_spots",
+              "take": 3,
+              "join": "、"
+            }
+          },
+          {
+            "var": "topic",
+            "label": "讲解类型",
+            "mode": "rotate",
+            "dict": "guide_topics",
+            "filterable": true
+          },
+          {
+            "var": "profile",
+            "label": "游客画像",
+            "mode": "compose",
+            "join": "，",
+            "parts": [
+              {
+                "dict": "profile_pool",
+                "path": "region"
+              },
+              {
+                "dict": "profile_pool",
+                "path": "gender"
+              },
+              {
+                "dict": "profile_pool",
+                "path": "age"
+              },
+              {
+                "dict": "profile_pool",
+                "path": "trip_type"
+              },
+              {
+                "dict": "profile_pool",
+                "path": "word_limit"
+              }
+            ]
+          }
+        ],
+        "variables": {},
+        "required": [
+          "turns"
+        ],
+        "dedup_field": "turns.0.profile",
+        "avoid_field": "sub_spot",
+        "conv_fields": [
+          {
+            "key": "scenic_name",
+            "label": "景区",
+            "list": true
+          },
+          {
+            "key": "sub_spot",
+            "label": "子景点",
+            "list": true
+          },
+          {
+            "key": "topic",
+            "label": "讲解类型",
+            "list": true
+          }
+        ],
+        "turn_fields": [
+          {
+            "key": "profile",
+            "label": "游客画像"
+          },
+          {
+            "key": "kb_facts",
+            "label": "知识库要点",
+            "fmt": "join"
+          },
+          {
+            "key": "highlights",
+            "label": "看点",
+            "fmt": "join"
+          }
+        ],
+        "turn_view": [
+          {
+            "key": "profile",
+            "label": "游客画像",
+            "editable": true
+          },
+          {
+            "key": "kb_facts",
+            "label": "景点知识要点（每行一条）",
+            "editable": true,
+            "fmt": "lines"
+          }
+        ]
+      },
+      "remark": "景点知识要点 + 游客画像的组合",
+      "sort": 50
+    },
+    {
+      "code": "narr_sft",
+      "name": "智能叙事个性化讲解训练集",
+      "kind": "sft",
+      "task_type": "ai_label",
+      "source_code": "narr_detail",
+      "tags": {
+        "业务": "景区服务",
+        "任务": "个性化讲解",
+        "类型": "SFT",
+        "领域": "旅游"
+      },
+      "config": {
+        "unit_label": "条",
+        "expand": {
+          "field": "turns",
+          "index_var": "turn_index",
+          "total_var": "turn_total"
+        },
+        "sample_id_template": "narrative_{{conv_id}}",
+        "messages": [
+          {
+            "role": "system",
+            "content": "{{persona}}"
+          },
+          {
+            "role": "user",
+            "content": "{{profile}}"
+          },
+          {
+            "role": "assistant",
+            "content": "<think>\n{{think}}\n</think>\n{{content}}"
+          }
+        ],
+        "validators": [
+          {
+            "type": "nonempty",
+            "field": "think",
+            "label": "思维链"
+          },
+          {
+            "type": "nonempty",
+            "field": "content",
+            "label": "讲解正文"
+          },
+          {
+            "type": "max_chars",
+            "field": "content",
+            "limit_from": "profile",
+            "limit_regex": "(\\d+)字以内",
+            "tolerance": 1.1
+          }
+        ],
+        "ai_fields": [
+          {
+            "key": "persona",
+            "label": "讲解员人设（system）",
+            "type": "textarea"
+          },
+          {
+            "key": "think",
+            "label": "推理过程（think）",
+            "type": "textarea"
+          },
+          {
+            "key": "content",
+            "label": "讲解正文",
+            "type": "textarea",
+            "count_chars": true
+          }
+        ]
+      },
+      "remark": "按画像定制讲解，think 三步推理，字数为硬约束",
+      "sort": 60
+    }
+  ],
+  "prompts": [
+    {
+      "code": "kefu_detail_v1",
+      "name": "客服会话明细生成",
+      "spec_code": "kefu_detail",
+      "system_prompt": "你是文旅行业景区智能客服训练语料的资深标注专家，长期服务 5A/4A 景区、主题乐园、博物馆与度假区。\n你的任务是批量生成真实的「景区客服多轮会话」，每条数据是一段完整对话，供下游按轮次拆成 SFT 样本。\n\n硬性要求：\n1. 每段会话是同一位游客与客服的一次完整对话。只问一个问题就结束的也是一段会话（turns 只有 1 个元素）；多轮的必须有真实推进关系，不能把不相干的问题硬拼。\n2. question 必须口语化：可省略、可带情绪、可有错别字，禁止\"请问贵景区…\"这类书面模板句。\n3. 每一轮都要给出 thought：键名严格为 \"意图1\"、\"意图2\"…，每个意图含 \"名称\"（取自意图体系）与 \"槽位\"（键名只能取自槽位字典）。\n4. 槽位必须是补全后的完整值：上文说\"过山车\"、本轮说\"那个\"，本轮 facility_name 仍写\"过山车\"，绝不能写代词。\n5. query_demand 每个意图必填，写用户本轮真正关心的业务点。\n6. reply 60~150 字，先结论后依据，可含一步引导动作。不得承诺景区无法保证的事（如\"保证不排队\"\"一定能退\"）。紧急求助类必须给出明确处置动作与求助入口。\n7. 同一段会话内的金额、时间、政策必须前后自洽，后轮不得与前轮矛盾。\n8. 严禁真实姓名、手机号、身份证号；订单号一律写作 D2026XXXXXX。\n\n只输出 JSON 数组，不要输出解释、前后缀或 Markdown 代码块。",
+      "user_prompt": "请生成 {{batch_size}} 段景区客服会话。\n\n【本批业务范围】类目：{{category}}；细分场景：{{sub_scene}}\n【本批会话形态】{{shape}}（建议 {{turn_hint}} 轮）—— {{shape_desc}}\n【景区背景】{{scenic_profile}}\n\n【意图体系】（名称必须取自此表）\n{{dict_intents}}\n\n【槽位字典】（槽位键名只能取自此表）\n{{dict_slots}}\n\n【已生成会话的首轮问题，禁止语义重复】\n{{avoid_list}}\n\n每段会话的 JSON 结构：\n{\n  \"category\": \"类目\",\n  \"sub_scene\": \"细分场景\",\n  \"shape\": \"会话形态\",\n  \"scene_desc\": \"一句话交代游客处境，如 带 6 岁孩子周末自驾来玩\",\n  \"visitor_tag\": \"亲子/老人/学生/外地自驾/团队\",\n  \"difficulty\": \"easy | medium | hard\",\n  \"turn_count\": 轮数(整数),\n  \"turns\": [\n    {\n      \"question\": \"本轮游客问题（口语化）\",\n      \"thought\": {\"意图1\": {\"名称\": \"设施收费\", \"槽位\": {\"facility_name\": \"过山车\", \"query_demand\": \"是否收费\"}}},\n      \"reply\": \"本轮客服回复\",\n      \"emotion\": \"平和 | 着急 | 不满 | 焦急\"\n    }\n  ]\n}\n\n补充规则：\n- 单轮会话：turns 只有 1 个元素，可含多意图（意图1+意图2）。\n- 多轮·指代省略：第 2 轮起必须出现代词或省略表达，槽位仍写完整值。\n- 多轮·话题切换：切换后不得沿用上一话题的槽位，意图名称跟着换。\n- 多轮·投诉升级：emotion 随轮次变化，最后一轮客服须给出处置动作。\n- 一句话含两个及以上独立诉求时，必须拆成 意图1 / 意图2 分别提槽位，reply 分点回应。\n\n只输出 JSON 数组。"
+    },
+    {
+      "code": "kefu_sft_v1",
+      "name": "客服对话预标注",
+      "spec_code": "kefu_sft",
+      "system_prompt": "你是训练样本预标注专家。给你一段景区客服会话和其中的某一轮，你要产出这一轮的意图分类、槽位提取与回复。产出会经过人工审核，请如实标注、不要臆造。\n\n要求：\n1. 只处理【本轮】，不要把后续轮次的内容提前写进来。\n2. thought 是嵌套 JSON：键名严格为 \"意图1\"、\"意图2\"…，每个意图含 \"名称\" 与 \"槽位\"；槽位键名必须是英文 key，值为中文。\n3. 一句话含多个独立诉求时必须拆成 意图1 / 意图2，不得合并；单意图只输出 意图1。\n4. 槽位必须做历史切片与指代消解：本轮出现代词或省略时，从历史对话还原为完整值（\"那个\"→\"过山车\"），绝不能把代词写进槽位。\n5. 话题切换时不得沿用上一话题的槽位；日期统一标准化为 YYYY-MM-DD 或相对时间词。\n6. reply 为最终回复正文，不含任何标签；多意图用\"关于X：…关于Y：…\"分点回应，60~150 字，且不得与历史对话中已给出的结论矛盾。\n\n只输出一个 JSON 对象，不要输出解释、前后缀或 Markdown 代码块。",
+      "user_prompt": "【完整会话（供理解上下文）】\n{{conv_json}}\n\n【历史对话】\n{{#history}}{{history}}{{/history}}{{^history}}（本轮是首轮，无历史）{{/history}}\n\n【本轮】第 {{turn_index}} / {{turn_total}} 轮\n用户问题：{{question}}\n\n【意图体系】\n{{dict_intents}}\n\n【槽位字典】\n{{dict_slots}}\n\n请输出：\n{\n  \"thought\": {\"意图1\": {\"名称\": \"…\", \"槽位\": {\"key\": \"值\"}}},\n  \"reply\": \"客服回复正文\"\n}"
+    },
+    {
+      "code": "eval_detail_v1",
+      "name": "讲解评价明细生成",
+      "spec_code": "eval_detail",
+      "system_prompt": "你是文旅行业的资深导游培训师与文博内容审校。你要产出「官方知识库片段 + 待评价讲解内容」的配对，供下游训练讲解评价模型。\n\n硬性要求：\n1. kb_facts 是官方知识库要点 5~8 条，每条为可核查的结构化事实（年代、人物、尺寸、材质、工艺、功能、建造或出土时间），表述精确、不含形容词渲染。\n2. kb_text 由 kb_facts 拼成一段通顺的知识库描述，事实必须与 kb_facts 完全一致。\n3. guide_text 是待评价的现场讲解话术，{{word_min}}~{{word_max}} 字，按【错误模式】改写；除注入的问题外表述自然，不得留下任何标注痕迹（不能出现\"此处有误\"之类）。\n4. 错误模式为 no_error 时，guide_text 必须与知识库完全相符。\n5. 不得出现真实个人信息。\n\n只输出 JSON 数组，不要输出解释、前后缀或 Markdown 代码块。",
+      "user_prompt": "请生成 {{batch_size}} 条讲解评价明细。\n\n【景区】{{scenic}}（{{scenic_type}}）\n【本批子景点】{{sub_spots}}\n【讲解类型】{{topic}}\n【错误模式】{{error_mode}} —— {{error_mode_desc}}\n【讲解字数】{{word_min}}~{{word_max}} 字\n\n【评价维度参考】\n{{dict_eval_dims}}\n\n【已生成子景点，禁止重复】\n{{avoid_list}}\n\n每条数据的 JSON 结构：\n{\n  \"scenic_name\": \"景区名称\",\n  \"sub_spot\": \"子景点/展厅/文物名称\",\n  \"topic\": \"讲解类型\",\n  \"error_mode\": \"本条的错误模式\",\n  \"turn_count\": 1,\n  \"turns\": [\n    {\n      \"kb_facts\": [\"官方知识库事实点 1\", \"事实点 2\"],\n      \"kb_text\": \"官方知识库正文（不含前缀）\",\n      \"guide_text\": \"待评价的讲解内容正文（不含前缀）\",\n      \"error_points\": [\"本条实际注入的问题点，no_error 时为空数组\"]\n    }\n  ]\n}\n\n只输出 JSON 数组。"
+    },
+    {
+      "code": "eval_sft_v1",
+      "name": "讲解评价预标注",
+      "spec_code": "eval_sft",
+      "system_prompt": "你是讲解内容评价模型的预标注专家。基于官方知识库对讲解内容做三维评价。产出会经过人工审核。\n\n要求：\n1. thought 必须包含评价维度判断、槽位提取、逻辑推导三部分，槽位键名严格取自评价维度字典。\n2. score 为 1~5 整数：5=三维度全合格；4=仅表述瑕疵；3=1 处非关键问题；2=多处问题或 1 处关键事实错误；1=多处关键事实错误或严重合规问题。\n3. comment 是给讲解员的评语，120~220 字：先指出问题，再给正确信息，最后给一条可执行建议。客观，不得谄媚，不得在无依据时下结论。\n4. 知识库未覆盖的信息：fact_check_result 必须为 unverifiable 并给出 refuse_reason，评语明确说明无法判定，绝不臆断。\n5. 讲解内容含错误前提的断言时，评语先纠正前提再评价。\n\n只输出一个 JSON 对象，不要输出解释、前后缀或 Markdown 代码块。",
+      "user_prompt": "【官方知识库】\n{{kb_text}}\n\n【待评价讲解内容】\n{{guide_text}}\n\n【评价维度与槽位】\nfact_accuracy 事实准确性：fact_check_result(correct|incorrect|partial|unverifiable)、fact_error_point、fact_correct_info\nlogic_coherence 逻辑连贯性：logic_check_result(coherent|incoherent)、logic_error_point、logic_error_type(时间线错乱|因果倒置|前后矛盾|跳跃讲解)\nservice_compliance 服务合规性：compliance_check_result(pass|fail)、compliance_risk_type(违规营销|低俗表达|歧视言论|安全提示缺失|封建迷信)、compliance_risk_point\n拒答与纠偏：refuse_reason、premise_correction\n\n请输出：\n{\n  \"thought\": {\n    \"评价维度\": [\"fact_accuracy\", \"logic_coherence\", \"service_compliance\"],\n    \"槽位\": {\"fact_check_result\": \"…\"},\n    \"逻辑推导\": \"逐条比对知识库与讲解内容的推理过程\"\n  },\n  \"score\": 1,\n  \"comment\": \"评语正文\"\n}"
+    },
+    {
+      "code": "narr_detail_v1",
+      "name": "个性化讲解明细生成",
+      "spec_code": "narr_detail",
+      "system_prompt": "你是文旅行业的资深导游培训师。你要产出「景点知识要点 + 游客画像」的组合，供下游训练个性化讲解模型。\n\n硬性要求：\n1. kb_facts 是该子景点的官方知识要点 5~8 条，每条为可核查的结构化事实，表述精确、不含形容词渲染。下游生成的讲解正文只能使用这些事实，所以要给足。\n2. highlights 是现场看点 2~4 条，指向游客真能看见的实物或细节。\n3. profile 原样使用给定的游客画像，不要改写。\n4. risk_notes 给一条现场安全或秩序提示。\n\n只输出 JSON 数组，不要输出解释、前后缀或 Markdown 代码块。",
+      "user_prompt": "请生成 {{batch_size}} 条个性化讲解明细。\n\n【景区】{{scenic}}（{{scenic_type}}）\n【本批子景点】{{sub_spots}}\n【讲解类型】{{topic}}\n【本批游客画像】{{profile}}\n\n【已生成子景点，禁止重复】\n{{avoid_list}}\n\n每条数据的 JSON 结构：\n{\n  \"scenic_name\": \"景区名称\",\n  \"sub_spot\": \"子景点/文物名称\",\n  \"topic\": \"讲解类型\",\n  \"turn_count\": 1,\n  \"turns\": [\n    {\n      \"profile\": \"{{profile}}\",\n      \"kb_facts\": [\"官方知识要点 1\", \"要点 2\"],\n      \"highlights\": [\"看点1\", \"看点2\"],\n      \"risk_notes\": \"现场安全或秩序提示，一句话\"\n    }\n  ]\n}\n\n注意：每条数据的 profile 可以在给定画像基础上换一个维度取值，保证同批之间画像不完全相同。\n\n只输出 JSON 数组。"
+    },
+    {
+      "code": "narr_sft_v1",
+      "name": "个性化讲解预标注",
+      "spec_code": "narr_sft",
+      "system_prompt": "你是个性化讲解模型的预标注专家。给你一个子景点的知识要点和一份游客画像，产出该画像专属的讲解。产出会经过人工审核。\n\n要求：\n1. persona 是该子景点专属讲解员的人设指令（写入训练样本的 system），须含身份定位（【景区-子景点】专属AI金牌讲解员）、严禁编造事实、语言风格要求、始终围绕该子景点作答。\n2. think 是内部推理，分行编号三步：① 用户画像分析 ② 知识点筛选（从 kb_facts 选哪几条、为什么）③ 风格与字数规划。\n3. content 是最终讲解正文，严格遵守画像中的字数上限，不含任何标签或编号。\n4. content 中所有硬信息（年代、人物、数字、材质）必须来自 kb_facts，不得新增；可加入面向该画像的类比与互动，但类比不得表述为史实。\n5. 针对画像做真实差异化：亲子要具象可看见、老人要放慢节奏并提示体力、研学要给知识锚点、异地游客可做家乡对比。不得写成通用讲解词换个开头。\n\n只输出一个 JSON 对象，不要输出解释、前后缀或 Markdown 代码块。",
+      "user_prompt": "【景区】{{scenic_name}} · {{sub_spot}}\n【游客画像】{{profile}}\n\n【官方知识要点】\n{{kb_facts}}\n\n【现场看点】\n{{highlights}}\n\n请输出：\n{\n  \"persona\": \"专属讲解员人设指令\",\n  \"think\": \"1. 用户画像分析：…\\n2. 知识点筛选：…\\n3. 风格与字数规划：…\",\n  \"content\": \"最终讲解正文\"\n}"
+    }
+  ],
+  "dicts": [
+    {
+      "code": "intents",
+      "name": "意图体系（客服）",
+      "value": [
+        {
+          "name": "门票预订",
+          "scenes": "门票、套票购买，购票渠道"
+        },
+        {
+          "name": "退改签政策",
+          "scenes": "退票、改签、退款进度"
+        },
+        {
+          "name": "票务政策",
+          "scenes": "票价、优惠、免票人群、实名制"
+        },
+        {
+          "name": "交通运营",
+          "scenes": "摆渡车、索道、游船的运营时间、路线、站点"
+        },
+        {
+          "name": "交通政策",
+          "scenes": "是否强制乘坐、票价、身高限制"
+        },
+        {
+          "name": "停车场信息",
+          "scenes": "停车场位置、收费、剩余车位"
+        },
+        {
+          "name": "设施收费",
+          "scenes": "机动游戏收费、是否含在大门票内"
+        },
+        {
+          "name": "设施状态",
+          "scenes": "排队时长、维修停运、开放状态"
+        },
+        {
+          "name": "设施限制",
+          "scenes": "身高、年龄、身体限制、安全须知"
+        },
+        {
+          "name": "位置导览",
+          "scenes": "景点、设施、出入口、母婴室位置"
+        },
+        {
+          "name": "路线推荐",
+          "scenes": "游玩路线、亲子与无障碍路线"
+        },
+        {
+          "name": "紧急求助",
+          "scenes": "走失、受伤、物品遗失（高优先级）"
+        },
+        {
+          "name": "闲聊",
+          "scenes": "寒暄、感谢、情绪宣泄"
+        }
+      ],
+      "columns": [
+        "name",
+        "scenes"
+      ]
+    },
+    {
+      "code": "slots",
+      "name": "核心槽位字典（英文 Key）",
+      "value": [
+        {
+          "key": "visit_date",
+          "name": "游玩、出行日期",
+          "rule": "标准化为 YYYY-MM-DD 或相对时间词",
+          "example": "2026-07-15、后天"
+        },
+        {
+          "key": "ticket_type",
+          "name": "门票、票种类型",
+          "rule": "提取具体票种或优惠政策",
+          "example": "成人票、家庭套票"
+        },
+        {
+          "key": "vehicle_type",
+          "name": "交通工具类型",
+          "rule": "提取具体园内交通工具",
+          "example": "摆渡车、索道"
+        },
+        {
+          "key": "facility_name",
+          "name": "游乐设施名称",
+          "rule": "提取具体机动游戏或设施名称",
+          "example": "过山车、旋转木马"
+        },
+        {
+          "key": "location_poi",
+          "name": "地点、POI 名称",
+          "rule": "提取具体景点、停车场或出入口",
+          "example": "1号生态停车场、西门"
+        },
+        {
+          "key": "passenger_attr",
+          "name": "乘客、游客属性",
+          "rule": "提取涉及票价或限制的人群特征",
+          "example": "老人、6岁儿童"
+        },
+        {
+          "key": "query_demand",
+          "name": "核心查询需求",
+          "rule": "提取用户针对实体最关心的业务点",
+          "example": "是否强制乘坐、票价政策"
+        }
+      ],
+      "columns": [
+        "key",
+        "name",
+        "rule",
+        "example"
+      ]
+    },
+    {
+      "code": "categories",
+      "name": "覆盖类目与细分场景",
+      "value": [
+        {
+          "category": "票务",
+          "sub_scenes": [
+            "票种与票价",
+            "优惠免票政策",
+            "实名制与预约",
+            "退改签规则",
+            "订单核销与发票",
+            "套票权益边界"
+          ]
+        },
+        {
+          "category": "交通",
+          "sub_scenes": [
+            "观光车与摆渡车",
+            "索道",
+            "游船",
+            "是否强制乘坐",
+            "停车场与自驾",
+            "公共交通接驳"
+          ]
+        },
+        {
+          "category": "酒店",
+          "sub_scenes": [
+            "房型与价格",
+            "门票住宿套餐",
+            "入住退房",
+            "取消政策",
+            "接送服务"
+          ]
+        },
+        {
+          "category": "文创",
+          "sub_scenes": [
+            "文创店位置",
+            "热销商品与价格",
+            "会员折扣",
+            "快递邮寄",
+            "联名限定款"
+          ]
+        },
+        {
+          "category": "餐饮",
+          "sub_scenes": [
+            "餐厅位置与时间",
+            "团餐预订",
+            "特色小吃",
+            "特殊饮食需求"
+          ]
+        },
+        {
+          "category": "导览",
+          "sub_scenes": [
+            "推荐路线",
+            "游玩时长",
+            "人工导游与讲解器",
+            "亲子与无障碍路线",
+            "定时讲解场次"
+          ]
+        },
+        {
+          "category": "设施",
+          "sub_scenes": [
+            "二次收费",
+            "排队时长",
+            "开放状态与检修",
+            "身高年龄限制",
+            "母婴室与寄存"
+          ]
+        },
+        {
+          "category": "客诉",
+          "sub_scenes": [
+            "服务态度",
+            "排队秩序",
+            "价格争议",
+            "设施故障",
+            "失物招领",
+            "处理时效"
+          ]
+        },
+        {
+          "category": "安全",
+          "sub_scenes": [
+            "雨雪与封山",
+            "高温防暑",
+            "紧急求助",
+            "安全提示"
+          ]
+        }
+      ],
+      "columns": [
+        "category",
+        "sub_scenes"
+      ]
+    },
+    {
+      "code": "dialog_shapes",
+      "name": "会话形态与权重",
+      "value": [
+        {
+          "name": "单轮会话",
+          "weight": 3,
+          "turns": "1",
+          "desc": "整段会话只有 1 轮，问完即结束；这一轮内可含多个诉求（多意图）"
+        },
+        {
+          "name": "多轮·连续追问",
+          "weight": 3,
+          "turns": "3-4",
+          "desc": "围绕同一对象逐步深入（票种→优惠→退改），后轮依赖前轮结论"
+        },
+        {
+          "name": "多轮·指代省略",
+          "weight": 3,
+          "turns": "3-4",
+          "desc": "后轮用代词或省略提问（那个呢/小孩要吗），语义依赖上文，槽位须补全为完整值"
+        },
+        {
+          "name": "多轮·话题切换",
+          "weight": 2,
+          "turns": "4-5",
+          "desc": "中途切换业务域（票务→交通→设施），切换后不得沿用上一话题的槽位"
+        },
+        {
+          "name": "多轮·投诉升级",
+          "weight": 1,
+          "turns": "3-4",
+          "desc": "由咨询升级为投诉或紧急求助，情绪逐轮变化，末轮须给出处置动作"
+        }
+      ],
+      "columns": [
+        "name",
+        "weight",
+        "turns",
+        "desc"
+      ]
+    },
+    {
+      "code": "scenics",
+      "name": "景区与子景点池",
+      "value": [
+        {
+          "scenic": "故宫博物院",
+          "type": "文博类",
+          "sub_spots": [
+            "太和殿",
+            "养心殿",
+            "钟表馆",
+            "珍宝馆",
+            "御花园",
+            "角楼"
+          ]
+        },
+        {
+          "scenic": "秦始皇帝陵博物院",
+          "type": "遗址类",
+          "sub_spots": [
+            "一号坑",
+            "二号坑",
+            "铜车马展厅",
+            "跪射俑",
+            "百戏俑坑"
+          ]
+        },
+        {
+          "scenic": "苏州拙政园",
+          "type": "园林类",
+          "sub_spots": [
+            "远香堂",
+            "小飞虹",
+            "见山楼",
+            "与谁同坐轩",
+            "枇杷园"
+          ]
+        },
+        {
+          "scenic": "敦煌莫高窟",
+          "type": "石窟类",
+          "sub_spots": [
+            "九层楼",
+            "藏经洞",
+            "第96窟",
+            "第257窟",
+            "数字展示中心"
+          ]
+        },
+        {
+          "scenic": "杭州西湖",
+          "type": "山水类",
+          "sub_spots": [
+            "断桥残雪",
+            "雷峰塔",
+            "岳王庙",
+            "苏堤春晓",
+            "三潭印月"
+          ]
+        },
+        {
+          "scenic": "黄山风景区",
+          "type": "山岳类",
+          "sub_spots": [
+            "迎客松",
+            "光明顶",
+            "西海大峡谷",
+            "始信峰",
+            "玉屏索道"
+          ]
+        },
+        {
+          "scenic": "平遥古城",
+          "type": "古城类",
+          "sub_spots": [
+            "日昇昌票号",
+            "县衙",
+            "城墙",
+            "文庙",
+            "镖局博物馆"
+          ]
+        },
+        {
+          "scenic": "三星堆博物馆",
+          "type": "文博类",
+          "sub_spots": [
+            "青铜神树",
+            "纵目面具",
+            "金杖",
+            "祭祀坑展厅"
+          ]
+        }
+      ],
+      "columns": [
+        "scenic",
+        "type",
+        "sub_spots"
+      ]
+    },
+    {
+      "code": "guide_topics",
+      "name": "讲解内容类型",
+      "value": [
+        "历史沿革",
+        "人物故事",
+        "建筑艺术",
+        "文物详解",
+        "博物馆展陈",
+        "民俗传说",
+        "红色记忆",
+        "自然地质"
+      ],
+      "columns": null
+    },
+    {
+      "code": "eval_modes",
+      "name": "讲解评价错误注入模式",
+      "value": [
+        {
+          "mode": "no_error",
+          "weight": 2,
+          "desc": "讲解完全符合知识库，三维度均合格"
+        },
+        {
+          "mode": "fact_error",
+          "weight": 3,
+          "desc": "注入 2-4 处事实错误（年代/人物/数据/材质/张冠李戴）"
+        },
+        {
+          "mode": "logic_error",
+          "weight": 2,
+          "desc": "注入逻辑问题（时间线错乱、因果倒置、前后矛盾、跳跃）"
+        },
+        {
+          "mode": "compliance_risk",
+          "weight": 2,
+          "desc": "注入合规问题（违规营销、低俗表达、歧视言论、安全提示缺失、封建迷信）"
+        },
+        {
+          "mode": "insufficient_kb",
+          "weight": 1,
+          "desc": "涉及知识库未覆盖的冷门信息，模型应拒答而非编造"
+        },
+        {
+          "mode": "false_premise",
+          "weight": 1,
+          "desc": "讲解中含错误前提的断言，模型应先纠偏再评价"
+        }
+      ],
+      "columns": [
+        "mode",
+        "weight",
+        "desc"
+      ]
+    },
+    {
+      "code": "eval_dims",
+      "name": "讲解评价维度",
+      "value": [
+        {
+          "code": "fact_accuracy",
+          "name": "事实准确性",
+          "slots": "fact_check_result / fact_error_point / fact_correct_info"
+        },
+        {
+          "code": "logic_coherence",
+          "name": "逻辑连贯性",
+          "slots": "logic_check_result / logic_error_point / logic_error_type"
+        },
+        {
+          "code": "service_compliance",
+          "name": "服务合规性",
+          "slots": "compliance_check_result / compliance_risk_type / compliance_risk_point"
+        }
+      ],
+      "columns": [
+        "code",
+        "name",
+        "slots"
+      ]
+    },
+    {
+      "code": "profile_pool",
+      "name": "用户画像维度池",
+      "value": {
+        "region": [
+          "广东",
+          "北京",
+          "上海",
+          "四川",
+          "浙江",
+          "山东",
+          "陕西",
+          "福建",
+          "东北",
+          "港澳台",
+          "海外华人"
+        ],
+        "gender": [
+          "男性",
+          "女性"
+        ],
+        "age": [
+          "8岁",
+          "16岁",
+          "23岁",
+          "30岁",
+          "38岁",
+          "45岁",
+          "56岁",
+          "68岁"
+        ],
+        "trip_type": [
+          "单人游",
+          "亲子游",
+          "情侣游",
+          "家庭三代游",
+          "老年团",
+          "研学团",
+          "商务考察",
+          "摄影爱好者"
+        ],
+        "word_limit": [
+          "150字以内",
+          "200字以内",
+          "300字以内",
+          "400字以内"
+        ]
+      },
+      "columns": null
+    },
+    {
+      "code": "asset_tag_dims",
+      "name": "资产标签四维取值",
+      "value": {
+        "业务": [
+          "景区服务",
+          "金融客服",
+          "医疗问答"
+        ],
+        "任务": [
+          "客服对话",
+          "讲解评价",
+          "个性化讲解"
+        ],
+        "类型": [
+          "SFT",
+          "DPO",
+          "评测集",
+          "明细"
+        ],
+        "领域": [
+          "旅游",
+          "金融",
+          "医疗"
+        ]
+      },
+      "columns": null
+    }
+  ]
+}

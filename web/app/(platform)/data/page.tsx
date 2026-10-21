@@ -1,7 +1,6 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { DataManager } from "@/components/DataManager";
-
+/** 原「数据管理」已并入「数据资产 → 蒸馏数据」 */
 export default function DataPage() {
-  return <DataManager />;
+  redirect("/assets/data");
 }

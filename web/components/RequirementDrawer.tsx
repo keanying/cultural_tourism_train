@@ -7,7 +7,7 @@ import { can, LABEL_TAG } from "@/lib/roles";
 import { useMe } from "./AppShell";
 import { ChunkStatusChip, ListTable, Progress, ReqStatusChip, StandardView } from "./ui";
 
-export type SourceBrief = { name: string; title: string; kind: string; rows: number; table: string };
+export type SourceBrief = { name: string; title: string; kind: string; rows: number; table: string; group?: string; gen_kind?: string; spec_name?: string };
 
 export function sourceSummary(cfg: string, sources: SourceBrief[]) {
   try {

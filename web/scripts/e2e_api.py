@@ -3,40 +3,10 @@
 用法：先启动页面（npm start），再运行 python web/scripts/e2e_api.py。
 注意：会在数据库中创建测试项目与需求，请在测试环境运行。
 """
-import http.cookiejar
 import json
 import time
-import urllib.error
-import urllib.request
 
-BASE = "http://localhost:3000"
-PW = "Ct@123456"
-
-
-class Client:
-    def __init__(self, login):
-        self.jar = http.cookiejar.CookieJar()
-        self.op = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(self.jar))
-        self.call("POST", "/api/auth/login", {"login_name": login, "password": PW})
-        self.name = login
-
-    def call(self, method, path, data=None, expect=200, raw=False):
-        req = urllib.request.Request(BASE + path, method=method,
-                                     data=json.dumps(data).encode() if data is not None else None,
-                                     headers={"Content-Type": "application/json"} if data is not None else {})
-        try:
-            r = self.op.open(req, timeout=600)
-            code, body = r.status, r.read()
-        except urllib.error.HTTPError as e:
-            code, body = e.code, e.read()
-        if code != expect:
-            raise AssertionError(f"{self.name} {method} {path} -> {code} {body[:300]!r} (expect {expect})")
-        return body if raw else json.loads(body)
-
-
-def ok(msg):
-    print("  ✓", msg)
-
+from e2e_api_client import Client, ok
 
 req = Client("requester")
 adm = Client("admin")
@@ -47,6 +17,7 @@ su = Client("superadmin")
 
 print("权限")
 a1.call("GET", "/api/sources", expect=403); ok("标注员不能访问原数据管理")
+a1.call("GET", "/api/gen/tasks", expect=403); adm.call("GET", "/api/gen/assets", expect=403); ok("标注员/管理员不能访问数据资产 · AI 生成")
 rv.call("GET", "/api/lbl/requirements", expect=403); ok("审核员不能访问需求区")
 adm.call("GET", "/api/sources", expect=403); ok("管理员不能访问原数据管理")
 req.call("GET", "/api/sources"); su.call("GET", "/api/sources"); ok("需求员/超管可访问原数据管理")
@@ -116,7 +87,8 @@ mism = dict(it["content"], order_status=2)
 lab.call("PATCH", f"/api/lbl/items/{ds_item['item_id']}", {"mode": "label", "content": mism, "label_tag": 1}, expect=422); ok("编码与名称不一致被拦截")
 fix = dict(it["content"], order_status=2, order_status_name="已退款")
 assert lab.call("PATCH", f"/api/lbl/items/{ds_item['item_id']}", {"mode": "label", "content": fix, "label_tag": 1})["label_tag"] == 2; ok("明细数据合法修正")
-lab.call("POST", f"/api/lbl/items/{items[2]['item_id']}/ai", expect=503); ok("未配置大模型时 AI 再标给出明确提示")
+if not any(m["has_key"] for m in su.call("GET", "/api/gen/models")["models"]):
+    lab.call("POST", f"/api/lbl/items/{items[2]['item_id']}/ai", expect=503); ok("未配置大模型时 AI 再标给出明确提示")
 
 # 其余全部确认正确（直接调用接口批量）
 t = time.time()
@@ -137,7 +109,7 @@ s = rv.call("POST", f"/api/lbl/chunks/{cid}", {"action": "review_claim"})
 assert s["sample_qty"] == max(50, -(-3031 * 5 // 100)); ok(f"领取审核，自动抽检 {s['sample_qty']} 条")
 rv.call("POST", f"/api/lbl/chunks/{cid}", {"action": "review_pass"}, expect=409); ok("抽检未审完不能通过")
 samp = rv.call("GET", f"/api/lbl/chunks/{cid}/items?mode=review&filter=sampled&pageSize=100")["items"]
-first = samp[0]
+first = next(x for x in samp if x["item_id"] != items[0]["item_id"])  # 避开带人工修正的第 1 条，后面要校验它进入交付
 it = rv.call("GET", f"/api/lbl/items/{first['item_id']}?mode=review")
 rv.call("POST", "/api/lbl/comments", {"chunk_id": cid, "item_id": first["item_id"], "content": "这条理由描述不够具体"}); ok("条目级审核意见")
 rv.call("PATCH", f"/api/lbl/items/{first['item_id']}", {"mode": "review", "review_result": 2, "label_tag": 3}); ok("不合格·剔除")

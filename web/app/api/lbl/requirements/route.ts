@@ -1,7 +1,7 @@
 import { logAction, requireAction, requireArea } from "@/lib/auth";
 import { body, handle } from "@/lib/api";
-import { getDb, getSources, HttpError, nowStr } from "@/lib/db";
-import { type SourceConfig, T } from "@/lib/lbl";
+import { getDb, HttpError, nowStr } from "@/lib/db";
+import { getAllSources, type SourceConfig, T } from "@/lib/lbl";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -52,10 +52,11 @@ export const POST = handle(async (req) => {
   if (standard.length < 10) throw new HttpError(400, "请填写标注标准（至少 10 个字）");
   const cfg: SourceConfig[] = Array.isArray(b.source_config) ? b.source_config : [];
   if (!cfg.length) throw new HttpError(400, "请至少指定一个数据源");
-  const sources = getSources();
+  const sources = getAllSources();
   const clean = cfg.map((c) => {
     const s = sources.get(String(c.source_code));
     if (!s) throw new HttpError(400, `未知数据源：${c.source_code}`);
+    if (s.kind === "gen" && s.gen!.status !== 2) throw new HttpError(400, `资产「${s.title}」尚未生成完成`);
     const max = c.max_qty ? Math.floor(Number(c.max_qty)) : 0;
     if (max < 0 || !Number.isFinite(max)) throw new HttpError(400, "条数上限无效");
     return { source_code: s.name, ...(s.kind === "sft" && c.split_type ? { split_type: String(c.split_type) } : {}), ...(max ? { max_qty: max } : {}) };

@@ -1,6 +1,7 @@
 import { requireArea } from "@/lib/auth";
 import { handle } from "@/lib/api";
 import { HttpError } from "@/lib/db";
+import { genContext, genExportLines } from "@/lib/gen";
 import { assertRequirementVisible, getRequirement, iterDeliveryItems } from "@/lib/lbl";
 import { LABEL_TAG, REVIEW_RESULT } from "@/lib/roles";
 import { pyDumps } from "@/lib/sft";
@@ -25,6 +26,7 @@ export const GET = handle((req, { id }) => {
   if (![5, 6].includes(r.requirement_status)) throw new HttpError(409, "需求尚未交付，不能下载");
   const format = new URL(req.url).searchParams.get("format") === "detail" ? "detail" : "jsonl";
   const it = iterDeliveryItems(r.requirement_id);
+  const memo = new Map();
   const enc = new TextEncoder();
   let first = true;
   const stream = new ReadableStream<Uint8Array>({
@@ -45,6 +47,11 @@ export const GET = handle((req, { id }) => {
         const { item, src, content } = n.value;
         if (format === "jsonl") {
           if (item.label_tag === 3) continue; // 无效剔除
+          if (src.kind === "gen") {
+            // 生成资产：明细每行一段会话；训练集每轮一行 {sample_id, conversation_id, messages}
+            for (const line of genExportLines(src, content, genContext(src, item.source_row_id, memo))) buf += pyDumps(line) + "\n";
+            continue;
+          }
           const obj = src.kind === "sft"
             ? { messages: [{ role: "system", content: content.system }, { role: "user", content: content.user }, { role: "assistant", content: content.assistant }] }
             : content;

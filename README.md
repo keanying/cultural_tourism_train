@@ -68,7 +68,7 @@ LLaMA-Factory `dataset_info.json` 示例：
 }
 ```
 
-### 标注审核平台（登录 / 需求 / 标注 / 审核 / 交付 / 数据管理）
+### 标注审核平台（数据资产 / 项目 / 需求 / 标注 / 审核 / 交付）
 
 ```bash
 python -m distill.build_db                     # 全部数据落库：web/data/{ods,dim,dwd,dws,ads}.db
@@ -85,7 +85,14 @@ cd web && npm install && npm run build && npm start   # http://localhost:3000
 | 审核员 | 领取分块并自动抽检，判定合格、修改或剔除；可对分块或单条数据发表意见；通过或退回返修 |
 | 超级管理员 | 全部功能，以及用户管理 |
 
-原有的数据管理功能（浏览 11 个数据源、在线修改、导出 JSONL）只对需求员和超级管理员可见。
+「数据资产」只对需求员和超级管理员可见，包含两类 AI 蒸馏数据：
+- **蒸馏数据**：即原有的数据管理功能，可浏览 11 个数据源、在线修改、导出 JSONL。
+- **AI 生成**：Lumos 已合并进来。
+  - 可以配置模型、数据规格、带版本的提示词和业务字典。
+  - 可以执行明细生成与 AI 预标注任务。
+  - Lumos 的历史数据可以用 `web/scripts/import_lumos.py` 一键导入。
+
+两类资产都在需求区作为数据源发布标注需求，统一经人工标注审核后交付。
 作业台中的数据都用 JSON 可视化编辑器渲染和编辑，嵌套的 JSON 字符串会自动展开。详见 `web/README.md`。
 
 ## 三、方法论：为什么这样“蒸馏”
@@ -141,7 +148,7 @@ distill/
   build_datasets.py / build_sft.py   一键入口
   build_db.py         全部数据按 ods/dim/dwd/dws/ads 分库导入 SQLite（标注平台表保留不覆盖）
   dictionary.py       生成数据字典与 DDL
-web/                  标注审核平台与数据管理（Next.js + HeroUI v3），见 web/README.md
+web/                  标注审核平台、数据资产与 AI 生成（Next.js + HeroUI v3，合并自 Lumos），见 web/README.md
 docs/                 数据字典、DDL（docs/ddl/）、训练集格式规范
 output/               交付数据（gzip 分片）
 ```

@@ -1,6 +1,7 @@
 import "server-only";
 import { columnTypes, getDb, getSources, HttpError, nowStr, q, type Source, SFT_TABLE, tableOf } from "./db";
 import type { User } from "./auth";
+import { G, genContext, genSources, loadGenContent, normalizeGenContent, validateGenContent } from "./gen";
 import { pyDumps, validateSft } from "./sft";
 
 export const CHUNK_SIZE = Number(process.env.LBL_CHUNK_SIZE ?? 5000);
@@ -23,6 +24,7 @@ export type SourceConfig = { source_code: string; split_type?: string; max_qty?:
 
 /** 训练样本：{system,user,assistant}；明细数据：全部规范字段 */
 export function loadContent(src: Source, rowId: number): Record<string, any> {
+  if (src.kind === "gen") return loadGenContent(src, rowId);
   const db = getDb();
   if (src.kind === "sft") {
     const r = db
@@ -36,14 +38,22 @@ export function loadContent(src: Source, rowId: number): Record<string, any> {
   return { ...r };
 }
 
+/** 全部可标注数据源：蒸馏数据（明细 + 训练集）+ AI 生成资产 */
+export function getAllSources(): Map<string, Source> {
+  const m = new Map(getSources());
+  for (const s of genSources()) m.set(s.name, s);
+  return m;
+}
+
 export function sourceOf(code: string): Source {
-  const s = getSources().get(code);
+  const s = getSources().get(code) ?? (code.startsWith("gen_asset_") ? genSources().find((x) => x.name === code) : undefined);
   if (!s) throw new HttpError(400, `未知数据源：${code}`);
   return s;
 }
 
 /** 内容校验：训练样本走 SFT 格式与业务约束；明细数据校验字段集合、类型、编码取值 */
-export function validateContent(src: Source, content: Record<string, any>): string[] {
+export function validateContent(src: Source, content: Record<string, any>, rowId: number): string[] {
+  if (src.kind === "gen") return validateGenContent(src, content, loadGenContent(src, rowId), genContext(src, rowId));
   if (src.kind === "sft") {
     if (typeof content?.user !== "string" || typeof content?.assistant !== "string") return ["训练样本必须包含 user 与 assistant 字符串"];
     return validateSft(src.name, content.user, content.assistant);
@@ -76,6 +86,7 @@ export function validateContent(src: Source, content: Record<string, any>): stri
 
 /** 规范化后存储：训练样本 user 统一为原数据 JSON 风格 */
 export function normalizeContent(src: Source, content: Record<string, any>): string {
+  if (src.kind === "gen") return normalizeGenContent(src, content);
   if (src.kind === "sft") {
     return JSON.stringify({ system: content.system, user: pyDumps(JSON.parse(content.user)), assistant: content.assistant });
   }
@@ -106,8 +117,18 @@ export function dispatchRequirement(reqId: number) {
           params.push(c.split_type);
         }
       }
-      const where = conds.length ? `WHERE ${conds.join(" AND ")}` : "";
       const limit = c.max_qty && c.max_qty > 0 ? `LIMIT ${Math.floor(c.max_qty)}` : "";
+      if (src.kind === "gen") {
+        // 生成资产：标注单位为会话
+        if (src.gen!.status !== 2) throw new HttpError(400, `资产「${src.title}」尚未生成完成`);
+        seq += Number(
+          db
+            .prepare(`INSERT INTO ${tmp} (source_code, source_row_id) SELECT ?, conv_row_id FROM ${G.conv} WHERE asset_id = ? ORDER BY seq_no ${limit}`)
+            .run(src.name, src.gen!.assetId).changes,
+        );
+        continue;
+      }
+      const where = conds.length ? `WHERE ${conds.join(" AND ")}` : "";
       const res = db
         .prepare(`INSERT INTO ${tmp} (source_code, source_row_id) SELECT ?, row_id FROM ${tableOf(src)} ${where} ORDER BY row_id ${limit}`)
         .run(src.name, ...params);
@@ -199,6 +220,11 @@ export function chunkAccess(u: User, c: any, mode: "label" | "review"): { canEdi
 
 /** 遍历需求的全部条目（标注内容优先），用于交付下载 */
 export function* iterDeliveryItems(reqId: number): Generator<{ item: any; src: Source; content: Record<string, any> }> {
+  const cache = new Map<string, Source>();
+  const srcOf = (code: string) => {
+    if (!cache.has(code)) cache.set(code, sourceOf(code));
+    return cache.get(code)!;
+  };
   const db = getDb();
   const rows = db
     .prepare(
@@ -209,7 +235,7 @@ export function* iterDeliveryItems(reqId: number): Generator<{ item: any; src: S
     )
     .iterate(reqId) as IterableIterator<any>;
   for (const item of rows) {
-    const src = sourceOf(item.source_code);
+    const src = srcOf(item.source_code);
     const content = item.label_content ? JSON.parse(item.label_content) : loadContent(src, item.source_row_id);
     yield { item, src, content };
   }

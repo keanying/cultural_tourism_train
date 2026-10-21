@@ -1,7 +1,8 @@
 import { requireUser } from "@/lib/auth";
 import { handle } from "@/lib/api";
-import { getDb, getSources } from "@/lib/db";
-import { chunkAccess, getChunk, loadContent, T } from "@/lib/lbl";
+import { getDb, type Source } from "@/lib/db";
+import { genPreview } from "@/lib/gen";
+import { chunkAccess, getChunk, loadContent, sourceOf, T } from "@/lib/lbl";
 import { answerPreview } from "@/lib/sft";
 
 export const runtime = "nodejs";
@@ -39,12 +40,15 @@ export const GET = handle((req, { id }) => {
        FROM ${T.item} i WHERE i.chunk_id = ? ${filter} ORDER BY i.item_seq_no LIMIT ? OFFSET ?`,
     )
     .all(c.chunk_id, pageSize, (page - 1) * pageSize) as any[];
-  const sources = getSources();
+  const cache = new Map<string, Source>();
   const items = rows.map((r) => {
-    const src = sources.get(r.source_code)!;
+    if (!cache.has(r.source_code)) cache.set(r.source_code, sourceOf(r.source_code));
+    const src = cache.get(r.source_code)!;
     const content = r.label_content ? JSON.parse(r.label_content) : loadContent(src, r.source_row_id);
     const preview =
-      src.kind === "sft"
+      src.kind === "gen"
+        ? genPreview(src, content)
+        : src.kind === "sft"
         ? answerPreview(content.assistant, 90)
         : src.viewColumns.slice(0, 4).map((k) => content[k]).filter((v) => v !== null && v !== "").join(" · ");
     const { label_content, ...rest } = r;

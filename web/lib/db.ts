@@ -14,10 +14,11 @@ export const SFT_TABLE = "ads.ads_llm_sft_sample_f";
 export const LOG_TABLE = "ads.ads_llm_data_edit_log_f";
 export const SOURCE_TABLE = "ads.ads_llm_data_source_f";
 
-let db: DatabaseSync | null = null;
+// 挂在 globalThis 上：开发模式热更新时不重复打开数据库（也避免把运行中的生成任务误判为中断）
+const g = globalThis as unknown as { __ctDb?: DatabaseSync };
 
 export function getDb(): DatabaseSync {
-  if (!db) {
+  if (!g.__ctDb) {
     const missing = SCHEMAS.filter((s) => !fs.existsSync(/*turbopackIgnore: true*/ path.join(DATA_DIR, `${s}.db`)));
     if (missing.length) {
       throw new Error(`数据库文件缺失：${missing.map((s) => `${s}.db`).join("、")}（目录 ${DATA_DIR}）。请先在项目根目录运行 python -m distill.build_db`);
@@ -30,9 +31,9 @@ export function getDb(): DatabaseSync {
     }
     d.exec("PRAGMA busy_timeout=5000;");
     ensurePlatformSchema(d, nowStr());
-    db = d;
+    g.__ctDb = d;
   }
-  return db;
+  return g.__ctDb!;
 }
 
 export type Source = {
@@ -41,13 +42,15 @@ export type Source = {
   table: string;
   title: string;
   comment: string;
-  kind: "dataset" | "sft";
+  kind: "dataset" | "sft" | "gen";
   rows: number;
   columns: string[];
   viewColumns: string[];
   searchColumns: string[];
   labels: Record<string, string>;
   enums: Record<string, Record<string, string>>;
+  /** AI 生成资产（kind=gen）：资产ID、产出类型与规格 */
+  gen?: { assetId: number; kind: "detail" | "sft"; specCode: string; specName: string; status: number };
 };
 
 let sourceCache: Map<string, Source> | null = null;

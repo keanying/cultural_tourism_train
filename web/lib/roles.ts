@@ -14,12 +14,12 @@ export const ROLE_LABEL: Record<Role, string> = {
 export type Area = "requirement" | "project" | "label" | "review" | "delivery" | "data" | "users";
 
 export const AREAS: { id: Area; name: string; href: string; desc: string }[] = [
+  { id: "data", name: "数据资产", href: "/assets", desc: "蒸馏数据与 AI 生成数据：查看、生成、在线修改与导出" },
   { id: "project", name: "项目区", href: "/projects", desc: "创建项目，查看项目与需求进度" },
   { id: "requirement", name: "需求区", href: "/requirements", desc: "发布标注需求与标注标准，管理员接收并下发" },
   { id: "label", name: "标注区", href: "/label", desc: "认领分块并逐条标注" },
   { id: "review", name: "审核区", href: "/review", desc: "抽检标注完成的分块，通过或退回" },
   { id: "delivery", name: "交付区", href: "/delivery", desc: "交付、确认并下载标注结果" },
-  { id: "data", name: "数据管理", href: "/data", desc: "原始数据查看、在线修改与导出" },
   { id: "users", name: "用户管理", href: "/users", desc: "账号与角色管理" },
 ];
 
@@ -29,7 +29,7 @@ export const AREA_ROLES: Record<Area, Role[]> = {
   label: ["superadmin", "admin", "annotator"],
   review: ["superadmin", "admin", "reviewer"],
   delivery: ["superadmin", "admin", "requester"],
-  data: ["superadmin", "requester"], // 原数据管理功能仅需求员和超级管理员可见
+  data: ["superadmin", "requester"], // 数据资产（含原数据管理与 AI 生成）仅需求员和超级管理员可见/可生成/可操作
   users: ["superadmin"],
 };
 
@@ -73,3 +73,20 @@ export const CHUNK_STATUS: Record<number, { name: string; color: "default" | "ac
 
 export const LABEL_TAG: Record<number, string> = { 0: "未标注", 1: "正确", 2: "已修正", 3: "无效剔除" };
 export const REVIEW_RESULT: Record<number, string> = { 0: "未审", 1: "合格", 2: "不合格·已修改" };
+
+// ---------------------------------------------------------------- 数据资产 · AI 生成
+type Tone = "default" | "accent" | "success" | "warning" | "danger";
+export const GEN_TASK_STATUS: Record<number, { name: string; color: Tone }> = {
+  1: { name: "待执行", color: "default" },
+  2: { name: "执行中", color: "accent" },
+  3: { name: "已完成", color: "success" },
+  4: { name: "执行失败", color: "danger" },
+  5: { name: "已停止", color: "warning" },
+};
+export const GEN_ASSET_STATUS: Record<number, { name: string; color: Tone }> = {
+  1: { name: "生成中", color: "accent" },
+  2: { name: "已生成", color: "success" },
+  3: { name: "生成失败", color: "danger" },
+};
+export const GEN_KIND: Record<string, string> = { detail: "明细数据", sft: "训练集" };
+export const GEN_TASK_TYPE: Record<string, string> = { detail_gen: "明细生成", ai_label: "AI 预标注" };

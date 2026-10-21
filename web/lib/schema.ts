@@ -1,5 +1,6 @@
 import "server-only";
 import type { DatabaseSync } from "node:sqlite";
+import { ensureGenSchema } from "./genSchema";
 import { hashPassword } from "./password";
 
 /**
@@ -129,6 +130,7 @@ const SEED_USERS: [string, string, string][] = [
 
 export function ensurePlatformSchema(db: DatabaseSync, now: string) {
   for (const sql of DDL) db.exec(sql);
+  ensureGenSchema(db, now);
   const n = (db.prepare("SELECT COUNT(*) AS n FROM ads.ads_llm_sys_user_f").get() as any).n;
   if (n === 0) {
     const ins = db.prepare(

@@ -1,6 +1,7 @@
 import { logAction, requireUser } from "@/lib/auth";
 import { body, handle } from "@/lib/api";
 import { getDb, HttpError, nowStr } from "@/lib/db";
+import { genContext } from "@/lib/gen";
 import { chunkAccess, getChunk, loadContent, normalizeContent, sourceOf, T, validateContent } from "@/lib/lbl";
 
 export const runtime = "nodejs";
@@ -30,6 +31,8 @@ export const GET = handle((req, { id }) => {
   return Response.json({
     item: rest,
     source: { name: src.name, title: src.title, kind: src.kind, labels: src.labels, enums: src.enums, columns: src.columns },
+    // 生成资产：规格配置、字典变量、各轮任务变量，供前端实时组装训练样本并校验
+    gen: src.kind === "gen" ? { kind: src.gen!.kind, spec_name: src.gen!.specName, ...genContext(src, it.source_row_id) } : null,
     original,
     content: label_content ? JSON.parse(label_content) : original,
     comments,
@@ -54,7 +57,7 @@ export const PATCH = handle(async (req, { id }) => {
   const origNorm = normalizeContent(src, original);
   let stored: string | null = it.label_content;
   if (b.content !== undefined) {
-    const errs = validateContent(src, b.content);
+    const errs = validateContent(src, b.content, it.source_row_id);
     if (errs.length) throw new HttpError(422, errs.join("；"));
     const norm = normalizeContent(src, b.content);
     stored = norm === origNorm ? null : norm;

@@ -37,7 +37,8 @@ export function DataManager() {
         const j = await r.json();
         if (!r.ok) throw new Error(j.error);
         setSources(j.sources);
-        setActive((a) => a || j.sources.find((s: SourceInfo) => s.kind === "sft")?.name || j.sources[0]?.name);
+        const want = new URLSearchParams(location.search).get("source");
+        setActive((a) => a || j.sources.find((s: SourceInfo) => s.name === want)?.name || j.sources.find((s: SourceInfo) => s.kind === "sft")?.name || j.sources[0]?.name);
       })
       .catch((e) => setLoadErr(e.message));
   }, []);

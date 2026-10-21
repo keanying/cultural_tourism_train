@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, fmtNum } from "@/lib/client";
 import { LABEL_TAG, REVIEW_RESULT } from "@/lib/roles";
 import { joinAssistant, pyDumps, splitAssistant, validateSft } from "@/lib/sft";
+import { genErrors, GenItemView } from "./gen/GenItemView";
 import { JsonEditor, type Json } from "./JsonEditor";
 import { ChunkStatusChip, Progress, StandardView } from "./ui";
 
@@ -293,9 +294,13 @@ function ItemPanel({ itemId, mode, canEdit, onSaved, onNext }: { itemId: number;
   useEffect(load, [load]);
 
   const isSft = d?.source.kind === "sft";
+  const isGen = d?.source.kind === "gen";
   const changed = useMemo(() => d && JSON.stringify(content) !== JSON.stringify(d.content), [content, d]);
   const diffOrig = useMemo(() => d && JSON.stringify(content) !== JSON.stringify(d.original), [content, d]);
-  const errors = useMemo(() => (d && isSft && content ? validateSft(d.source.name, content.user, content.assistant) : []), [d, isSft, content]);
+  const errors = useMemo(
+    () => (d && content ? (isGen ? genErrors(d.gen, content, d.original) : isSft ? validateSft(d.source.name, content.user, content.assistant) : []) : []),
+    [d, isSft, isGen, content],
+  );
 
   const save = async (payload: Record<string, unknown>, goNext = true) => {
     setBusy(true);
@@ -350,7 +355,7 @@ function ItemPanel({ itemId, mode, canEdit, onSaved, onNext }: { itemId: number;
       <div className="flex flex-wrap items-center gap-2 text-sm">
         <span className="font-medium">条目 #{it.item_seq_no}</span>
         <span className="text-muted">
-          {d.source.title} · row_id={it.source_row_id}
+          {d.source.title} · {isGen ? `会话 ${d.gen.convId}` : `row_id=${it.source_row_id}`}
         </span>
         <TagChip tag={it.label_tag} />
         {it.label_source_type === 2 ? <Chip size="sm">AI 再标</Chip> : null}
@@ -370,7 +375,7 @@ function ItemPanel({ itemId, mode, canEdit, onSaved, onNext }: { itemId: number;
           </Alert.Content>
         </Alert>
       ) : null}
-      {isSft ? (
+      {isSft || isGen ? (
         errors.length ? (
           <Alert status="danger">
             <Alert.Content>
@@ -393,12 +398,20 @@ function ItemPanel({ itemId, mode, canEdit, onSaved, onNext }: { itemId: number;
         {showOrig ? (
           <div>
             <h4 className="mb-2 text-sm font-medium text-muted">原始内容（规则引擎/AI 初标，只读）</h4>
-            {isSft ? <SftView content={d.original} readOnly /> : <JsonEditor value={d.original} readOnly labels={d.source.labels} enums={d.source.enums} />}
+            {isGen ? (
+              <GenItemView g={d.gen} content={d.original} readOnly labels={d.source.labels} />
+            ) : isSft ? (
+              <SftView content={d.original} readOnly />
+            ) : (
+              <JsonEditor value={d.original} readOnly labels={d.source.labels} enums={d.source.enums} />
+            )}
           </div>
         ) : null}
         <div>
           {showOrig ? <h4 className="mb-2 text-sm font-medium">当前内容</h4> : null}
-          {isSft ? (
+          {isGen ? (
+            <GenItemView g={d.gen} content={content} readOnly={!canEdit} onChange={setContent} labels={d.source.labels} />
+          ) : isSft ? (
             <SftView content={content} readOnly={!canEdit} onChange={setContent} />
           ) : (
             <JsonEditor value={content} onChange={canEdit ? setContent : undefined} readOnly={!canEdit} labels={d.source.labels} enums={d.source.enums} fixedKeys />

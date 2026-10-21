@@ -45,8 +45,15 @@ export default function RequirementsPage() {
     load();
     api("/api/lbl/sources").then((j) => setSources(j.sources)).catch(() => {});
     api("/api/lbl/projects").then((j) => setProjects(j.projects)).catch(() => {});
-    const id = new URLSearchParams(location.search).get("id");
-    if (id) setOpenId(Number(id));
+    const sp = new URLSearchParams(location.search);
+    if (sp.get("id")) setOpenId(Number(sp.get("id")));
+    // 从数据资产页“发布标注需求”跳转：预选该数据源
+    const pre = sp.get("source");
+    if (pre) {
+      setSel({ [pre]: { checked: true, split_type: "", max_qty: "" } });
+      form.open();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [load]);
 
   const publish = async () => {
@@ -137,17 +144,21 @@ export default function RequirementsPage() {
                   <TextArea rows={2} />
                 </TextField>
                 <div>
-                  <div className="mb-2 text-sm">指定数据（可多选；训练集可限定切分，均可设置条数上限）</div>
+                  <div className="mb-2 text-sm">指定数据（可多选；训练集可限定切分，均可设置条数上限；AI 生成资产以会话为单位标注）</div>
                   <div className="space-y-2 rounded-lg border border-border p-3">
-                    {sources.map((s) => {
+                    {sources.map((s, i) => {
                       const v = sel[s.name] ?? { checked: false, split_type: "", max_qty: "" };
                       const set = (patch: Partial<SrcSel>) => setSel({ ...sel, [s.name]: { ...v, ...patch } });
+                      const head = s.group && s.group !== sources[i - 1]?.group;
                       return (
-                        <div key={s.name} className="flex flex-wrap items-center gap-3">
+                        <div key={s.name}>
+                          {head ? <div className={`mb-1 text-xs font-medium text-muted ${i ? "mt-3 border-t border-border pt-2" : ""}`}>{s.group}</div> : null}
+                        <div className="flex flex-wrap items-center gap-3">
                           <label className="flex min-w-[300px] cursor-pointer items-center gap-2">
                             <input type="checkbox" className="size-4 accent-[var(--accent)]" checked={v.checked} onChange={(e) => set({ checked: e.target.checked })} />
                             <span className="text-sm">{s.title}</span>
-                            <span className="font-mono text-xs text-muted">{fmtNum(s.rows)} 条</span>
+                            {s.kind === "gen" ? <span className="rounded bg-surface-secondary px-1.5 text-xs">{s.gen_kind === "sft" ? "训练集" : "明细"}</span> : null}
+                            <span className="font-mono text-xs text-muted">{fmtNum(s.rows)} {s.kind === "gen" ? "段会话" : "条"}</span>
                           </label>
                           {v.checked ? (
                             <>
@@ -168,6 +179,7 @@ export default function RequirementsPage() {
                               />
                             </>
                           ) : null}
+                        </div>
                         </div>
                       );
                     })}

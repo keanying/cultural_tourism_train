@@ -11,18 +11,9 @@ export function joinAssistant(thought: string, answer: string): string {
   return `<thought>\n${thought.trim()}\n</thought>\n<answer>\n${answer.trim()}\n</answer>`;
 }
 
-// 与 Python json.dumps(ensure_ascii=False) 相同的风格：逗号、冒号后带空格，保证与原数据格式一致
-export function pyDumps(v: unknown): string {
-  if (v === null || v === undefined) return "null";
-  if (Array.isArray(v)) return `[${v.map(pyDumps).join(", ")}]`;
-  if (typeof v === "object") {
-    return `{${Object.entries(v as Record<string, unknown>)
-      .map(([k, x]) => `${JSON.stringify(k)}: ${pyDumps(x)}`)
-      .join(", ")}}`;
-  }
-  if (typeof v === "number" && Number.isInteger(v)) return String(v);
-  return JSON.stringify(v);
-}
+// 与 Python json.dumps(ensure_ascii=False) 相同的风格，定义在 tpl.ts
+export { pyDumps } from "./tpl";
+import { pyDumps } from "./tpl";
 
 export function prettyJson(text: string): string {
   try {
